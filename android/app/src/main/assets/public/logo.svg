@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Drop Shadow for 3D depth -->
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="2" dy="5" stdDeviation="4" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Gradients -->
+    <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF3D1"/>
+      <stop offset="30%" stop-color="#D4AF37"/>
+      <stop offset="70%" stop-color="#AA7C11"/>
+      <stop offset="100%" stop-color="#735100"/>
+    </linearGradient>
+
+    <linearGradient id="green-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ADE80"/>
+      <stop offset="50%" stop-color="#16A34A"/>
+      <stop offset="100%" stop-color="#14532D"/>
+    </linearGradient>
+
+    <linearGradient id="dark-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="50%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F8FAFC"/>
+    </linearGradient>
+    
+    <linearGradient id="arrow-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#15803D"/>
+      <stop offset="50%" stop-color="#22C55E"/>
+      <stop offset="100%" stop-color="#4ADE80"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Base Card Background -->
+  <rect x="15" y="15" width="482" height="482" rx="72" fill="url(#bg-grad)" filter="url(#shadow)"/>
+  
+  <!-- Outer Gold and Green Borders -->
+  <rect x="15" y="15" width="482" height="482" rx="72" fill="none" stroke="url(#gold-grad)" stroke-width="10"/>
+  <rect x="25" y="25" width="462" height="462" rx="62" fill="none" stroke="#166534" stroke-width="4"/>
+
+  <!-- ========================================== -->
+  <!-- GRAPHICS LAYER: BUILDINGS, G, GATE, ROAD -->
+  <!-- ========================================== -->
+  <g transform="translate(0, -10)">
+    
+    <!-- Left Side: Golden-lined Skyscrapers -->
+    <g filter="url(#shadow)">
+      <!-- Building 4 (Back) -->
+      <path d="M 95 210 L 115 190 L 115 270 L 95 270 Z" fill="#0F172A" stroke="url(#gold-grad)" stroke-width="1.5"/>
+      <!-- Building 3 -->
+      <path d="M 110 180 L 135 150 L 135 275 L 110 275 Z" fill="#1E293B" stroke="url(#gold-grad)" stroke-width="1.5"/>
+      <line x1="122" y1="180" x2="122" y2="270" stroke="url(#gold-grad)" stroke-width="1" stroke-dasharray="3, 3" />
+      
+      <!-- Building 2 (Tall Main Building with highlighted windows) -->
+      <path d="M 130 115 L 160 90 L 160 280 L 130 280 Z" fill="#0F172A" stroke="url(#gold-grad)" stroke-width="2"/>
+      <!-- Window stripes in Main Building -->
+      <rect x="140" y="125" width="4" height="120" fill="url(#gold-grad)" opacity="0.8"/>
+      <rect x="148" y="115" width="4" height="130" fill="url(#gold-grad)" opacity="0.8"/>
+      
+      <!-- Building 1 (Front Left) -->
+      <path d="M 75 220 L 95 200 L 95 265 L 75 265 Z" fill="#1E293B" stroke="url(#gold-grad)" stroke-width="1.5"/>
+    </g>
+
+    <!-- Main Stylized letter 'G' -->
+    <path d="M 370 110 
+             C 285 70, 185 110, 165 200 
+             C 150 275, 200 340, 275 355 
+             C 325 365, 360 345, 385 315 
+             L 345 285 
+             C 330 300, 310 315, 280 315 
+             C 230 315, 195 280, 200 220 
+             C 205 160, 255 125, 315 125 
+             C 345 125, 370 140, 385 165 
+             Z" 
+          fill="url(#dark-grad)" 
+          filter="url(#shadow)"/>
+
+    <!-- Bright Green Up-Right Arrow -->
+    <g filter="url(#shadow)">
+      <path d="M 360 150 L 415 130 L 410 75 L 390 95 L 315 150 L 335 170 L 380 120 Z" fill="url(#arrow-grad)"/>
+    </g>
+
+    <!-- Center: Elegant Security Gate -->
+    <g filter="url(#shadow)" transform="translate(15, 15)">
+      <!-- Left pillar -->
+      <rect x="195" y="160" width="8" height="65" fill="#000" rx="1"/>
+      <rect x="193" y="157" width="12" height="4" fill="url(#gold-grad)"/>
+      <circle cx="199" cy="154" r="3" fill="url(#gold-grad)"/>
+      
+      <!-- Right pillar -->
+      <rect x="295" y="160" width="8" height="65" fill="#000" rx="1"/>
+      <rect x="293" y="157" width="12" height="4" fill="url(#gold-grad)"/>
+      <circle cx="299" cy="154" r="3" fill="url(#gold-grad)"/>
+
+      <!-- Gate Bars & Frames -->
+      <!-- Left Gate Leaf -->
+      <path d="M 203 168 H 246 V 218 H 203 Z" fill="none" stroke="#000" stroke-width="3"/>
+      <path d="M 203 168 Q 224 162 246 168 V 218 H 203 Z" fill="none" stroke="url(#gold-grad)" stroke-width="2"/>
+      <line x1="213" y1="168" x2="213" y2="218" stroke="#000" stroke-width="1.5"/>
+      <line x1="223" y1="166" x2="223" y2="218" stroke="#000" stroke-width="1.5"/>
+      <line x1="233" y1="166" x2="233" y2="218" stroke="#000" stroke-width="1.5"/>
+      <line x1="243" y1="168" x2="243" y2="218" stroke="#000" stroke-width="1.5"/>
+
+      <!-- Right Gate Leaf -->
+      <path d="M 252 168 H 295 V 218 H 252 Z" fill="none" stroke="#000" stroke-width="3"/>
+      <path d="M 252 168 Q 274 162 295 168 V 218 H 252 Z" fill="none" stroke="url(#gold-grad)" stroke-width="2"/>
+      <line x1="255" y1="168" x2="255" y2="218" stroke="#000" stroke-width="1.5"/>
+      <line x1="265" y1="166" x2="265" y2="218" stroke="#000" stroke-width="1.5"/>
+      <line x1="275" y1="166" x2="275" y2="218" stroke="#000" stroke-width="1.5"/>
+      <line x1="285" y1="168" x2="285" y2="218" stroke="#000" stroke-width="1.5"/>
+      
+      <!-- Center Gate Knobs -->
+      <circle cx="244" cy="193" r="2.5" fill="url(#gold-grad)"/>
+      <circle cx="254" cy="193" r="2.5" fill="url(#gold-grad)"/>
+    </g>
+
+    <!-- Golden Dual S-Curved Roads flowing out of the gate -->
+    <g filter="url(#shadow)">
+      <!-- Outer/Inner Sweeping road shapes -->
+      <path d="M 230 238 C 230 250, 275 295, 330 295 C 345 295, 355 290, 360 282 L 348 274 C 335 282, 310 282, 280 255 C 265 240, 245 238, 230 238 Z" fill="url(#gold-grad)" />
+      <path d="M 245 238 C 245 244, 270 270, 315 275 C 330 275, 342 270, 348 262 L 338 255 C 322 262, 305 260, 280 244 C 270 238, 255 238, 245 238 Z" fill="url(#gold-grad)" opacity="0.9"/>
+    </g>
+
+  </g>
+
+  <!-- ========================================== -->
+  <!-- TYPOGRAPHY & BRANDING LAYER -->
+  <!-- ========================================== -->
+
+  <!-- "GateKaru" App Name -->
+  <text x="256" y="375" text-anchor="middle" font-family="'Inter', -apple-system, sans-serif" font-size="52" font-weight="900" letter-spacing="-1">
+    <tspan fill="#0F172A">Gate</tspan><tspan fill="url(#gold-grad)" filter="url(#glow)">Karu</tspan>
+  </text>
+
+  <!-- Divider Line & Subtitle: "SECURE SOCIETY ERP" -->
+  <g transform="translate(0, 395)">
+    <!-- Decorative Left Line -->
+    <line x1="75" y1="5" x2="110" y2="5" stroke="url(#gold-grad)" stroke-width="2.5" stroke-linecap="round"/>
+    
+    <!-- Subtitle -->
+    <text x="256" y="10" text-anchor="middle" fill="#0F172A" font-family="'Inter', -apple-system, sans-serif" font-size="14.5" font-weight="800" letter-spacing="4">
+      SECURE SOCIETY ERP
+    </text>
+    
+    <!-- Decorative Right Line -->
+    <line x1="402" y1="5" x2="437" y2="5" stroke="url(#gold-grad)" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- Small green shield with lock icon in center -->
+  <g transform="translate(243, 415)" filter="url(#shadow)">
+    <path d="M 13 0 C 7 1.5, 2 3, 2 8 C 2 15, 13 21, 13 21 C 13 21, 24 15, 24 8 C 24 3, 19 1.5, 13 0 Z" fill="#16A34A" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- Lock body -->
+    <rect x="9" y="9" width="8" height="6" rx="1.5" fill="#FFFFFF"/>
+    <!-- Lock shackle -->
+    <path d="M 10 9 V 7 C 10 5.5, 11 5, 13 5 C 15 5, 16 5.5, 16 7 V 9" fill="none" stroke="#FFFFFF" stroke-width="1.25"/>
+  </g>
+
+  <!-- Bottom Pill Badge: "A PRODUCT OF JOBSKARU TECHNOLOGIES" -->
+  <g transform="translate(66, 445)" filter="url(#shadow)">
+    <!-- Capsule base -->
+    <rect x="0" y="0" width="380" height="34" rx="17" fill="#0F172A"/>
+    <!-- Green inner border accent for high-end look -->
+    <rect x="2" y="2" width="376" height="30" rx="15" fill="none" stroke="#166534" stroke-width="1" opacity="0.5"/>
+    
+    <!-- Text -->
+    <text x="190" y="21" text-anchor="middle" font-family="'Inter', -apple-system, sans-serif" font-size="10.5" font-weight="800" letter-spacing="0.5">
+      <tspan fill="#F8FAFC">A PRODUCT OF </tspan>
+      <tspan fill="url(#gold-grad)">JOBSKARU </tspan>
+      <tspan fill="#4ADE80">TECHNOLOGIES</tspan>
+    </text>
+  </g>
+
+</svg>

@@ -1,0 +1,6 @@
+{
+  "appId": "com.gatekaru.app",
+  "appName": "Gatekaru",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

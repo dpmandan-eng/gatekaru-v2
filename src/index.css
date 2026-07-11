@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@keyframes borderColorCycle {
+  0% { border-color: #4f46e5; }
+  25% { border-color: #ec4899; }
+  50% { border-color: #10b981; }
+  75% { border-color: #f59e0b; }
+  100% { border-color: #4f46e5; }
+}
+
+.animate-border-glow {
+  animation: borderColorCycle 1s linear infinite;
+}
