@@ -7,6 +7,7 @@ import { GoogleGenAI } from "@google/genai";
 import { initializeDatabase, saveDb, runDbDiagnostics } from "./db_store";
 import jwt from "jsonwebtoken";
 import AdmZip from "adm-zip";
+import { WebSocketServer } from "ws";
 
 dotenv.config();
 
@@ -33,6 +34,19 @@ app.get("/api/health", (req, res) => {
     message: "GateKaru production server is active",
     timestamp: new Date().toISOString()
   });
+});
+
+// Capture client-side startup errors
+app.post("/api/log-error", (req, res) => {
+  const { message, filename, lineno, colno, stack } = req.body;
+  const logMessage = `\n--- CLIENT ERROR [${new Date().toISOString()}] ---\n` +
+    `Error: ${message}\n` +
+    `File: ${filename} (Line ${lineno}, Col ${colno})\n` +
+    `Stack Trace:\n${stack}\n` +
+    `-----------------------------------------\n`;
+  console.error(logMessage);
+  fs.appendFileSync(path.join(process.cwd(), "client-error.log"), logMessage, "utf8");
+  res.json({ status: "logged" });
 });
 
 // Initialize Gemini SDK with telemetry header
@@ -103,237 +117,126 @@ const defaultDb = {
     ]
   },
   societies: [
-    { id: "s1", name: "Greenwood Heights Society", address: "Sector 45, Gurugram, Haryana, India", totalFlats: 120, billingCycle: "Monthly" }
+    { id: "s1", name: "Greenwood Heights Society", address: "Sector 45, Gurugram, Haryana, India", totalFlats: 120, billingCycle: "Monthly" },
+    { id: "s2", name: "Yashika Residency", address: "DLF Phase 5, Sector 54, Gurugram, Haryana, India", totalFlats: 80, billingCycle: "Monthly" },
+    { id: "s3", name: "Sahil Tower", address: "Golf Course Road, Gurugram, Haryana, India", totalFlats: 60, billingCycle: "Monthly" },
+    { id: "s4", name: "Silver Maple Heights", address: "Sector 50, Gurugram, Haryana, India", totalFlats: 150, billingCycle: "Monthly" }
   ],
   users: [
-    // Resident Owner
-    { id: "u1", name: "Aarav Sharma", phone: "+91 98765 43210", email: "aarav@example.com", role: "resident", flat: "A-402", type: "Owner", vehicleNo: "DL-3C-AB-1234" },
-    // Resident Tenant
-    { id: "u2", name: "Priya Patel", phone: "+91 87654 32109", email: "priya@example.com", role: "resident", flat: "B-105", type: "Tenant", vehicleNo: "HR-26-CD-5678" },
-    // Security Guard
-    { id: "u3", name: "Mahendra Singh", phone: "+91 76543 21098", email: "singh.guard@example.com", role: "guard", shift: "Day Shift (08:00 AM - 08:00 PM)", gate: "Gate 1", idCard: "SG-882" },
-    // Society Admin
-    { id: "u4", name: "Vikram Mehta", phone: "+91 65432 10987", email: "admin.mehta@example.com", role: "admin", designation: "General Secretary", committee: "Greenwood Management Committee" },
     // Super Admin
     { id: "u5", name: "Rajesh GateKaru", phone: "+91 99999 88888", email: "super@gatekaru.com", role: "super_admin", organization: "GateKaru Corporate" },
     // Developer Super Admin
     { id: "u6", name: "GateKaru Developer", phone: "+91 99999 12345", email: "jaiganeshdp@gmail.com", role: "super_admin", organization: "GateKaru Corporate" }
   ],
-  visitors: [
-    {
-      id: "v1",
-      name: "Sanjay Kumar",
-      type: "Guest",
-      purpose: "Meeting Friend",
-      flat: "A-402",
-      hostName: "Aarav Sharma",
-      company: "Personal",
-      vehicleNumber: "DL-10-X-9988",
-      passcode: "G-49201",
-      qrCode: "QR-G-49201",
-      status: "Pre-Approved",
-      requestedAt: "2026-07-08T09:30:00Z",
-      checkedInAt: null,
-      checkedOutAt: null
-    },
-    {
-      id: "v2",
-      name: "Amit Patel",
-      type: "Delivery",
-      purpose: "Food Delivery",
-      flat: "B-105",
-      hostName: "Priya Patel",
-      company: "Zomato",
-      vehicleNumber: "HR-26-Y-1122",
-      passcode: "D-88124",
-      qrCode: "QR-D-88124",
-      status: "Checked-In",
-      requestedAt: "2026-07-08T11:45:00Z",
-      checkedInAt: "2026-07-08T11:50:00Z",
-      checkedOutAt: null
-    },
-    {
-      id: "v3",
-      name: "Ramesh Kumar",
-      type: "Cab",
-      purpose: "Ola Pickup",
-      flat: "A-402",
-      hostName: "Aarav Sharma",
-      company: "Ola Cabs",
-      vehicleNumber: "DL-1C-Z-4545",
-      passcode: "C-20911",
-      qrCode: "QR-C-20911",
-      status: "Checked-Out",
-      requestedAt: "2026-07-08T08:00:00Z",
-      checkedInAt: "2026-07-08T08:10:00Z",
-      checkedOutAt: "2026-07-08T08:35:00Z"
-    },
-    {
-      id: "v4",
-      name: "Vikram Soni",
-      type: "Service",
-      purpose: "Water Purifier Service",
-      flat: "A-402",
-      hostName: "Aarav Sharma",
-      company: "Kent RO",
-      vehicleNumber: "No Vehicle",
-      passcode: "S-55102",
-      qrCode: "QR-S-55102",
-      status: "Pre-Approved",
-      requestedAt: "2026-07-08T12:00:00Z",
-      checkedInAt: null,
-      checkedOutAt: null
-    }
-  ],
-  maintenance: [
-    { id: "m1", flat: "A-402", title: "Monthly Maintenance - July 2026", amount: 4500, dueDate: "2026-07-15", status: "Unpaid", category: "Maintenance Fee", paidAt: null, transactionId: null },
-    { id: "m2", flat: "B-105", title: "Monthly Maintenance - July 2026", amount: 4500, dueDate: "2026-07-15", status: "Paid", category: "Maintenance Fee", paidAt: "2026-07-05T10:30:00Z", transactionId: "TXN99281726" },
-    { id: "m3", flat: "A-402", title: "Monthly Maintenance - June 2026", amount: 4500, dueDate: "2026-06-15", status: "Paid", category: "Maintenance Fee", paidAt: "2026-06-12T14:22:00Z", transactionId: "TXN88201931" },
-    { id: "m4", flat: "A-402", title: "Clubhouse Party Booking Fee", amount: 2000, dueDate: "2026-07-10", status: "Paid", category: "Amenity Utility", paidAt: "2026-07-06T11:00:00Z", transactionId: "TXN91827411" }
-  ],
-  complaints: [
-    {
-      id: "c1",
-      flat: "A-402",
-      residentName: "Aarav Sharma",
-      title: "Block A lift door sticking",
-      category: "Lifts & Elevators",
-      description: "The ground floor elevator door for Block A sticks when opening and takes more than 15 seconds. Please look into it.",
-      status: "Assigned",
-      createdAt: "2026-07-06T09:15:00Z",
-      assignedTo: "Karan Johar (Elevator Tech)",
-      updates: [
-        { date: "2026-07-06T10:00:00Z", note: "Ticket acknowledged and assigned to technical partner." }
-      ]
-    },
-    {
-      id: "c2",
-      flat: "B-105",
-      residentName: "Priya Patel",
-      title: "Water seepage in B-Block lobby",
-      category: "Plumbing",
-      description: "Seepage observed in the ceiling of B-Block basement parking and ground floor lobby near the lift core.",
-      status: "Resolved",
-      createdAt: "2026-07-05T14:30:00Z",
-      assignedTo: "Ramesh Prasad (Plumber)",
-      updates: [
-        { date: "2026-07-05T15:30:00Z", note: "Plumbing team inspected. Main leak from line joint repaired." },
-        { date: "2026-07-06T11:00:00Z", note: "Inspection done. Seepage dried. Complaint marked as resolved." }
-      ]
-    }
-  ],
-  notices: [
-    { id: "n1", title: "Water Supply Interruption Notice", category: "Maintenance", content: "Dear Residents, water supply will be suspended on 10th July from 10:00 AM to 02:00 PM for water tank cleaning. Please plan accordingly.", date: "2026-07-08", author: "Vikram Mehta (General Secretary)" },
-    { id: "n2", title: "EV Charger Installation Proposal", category: "General Notice", content: "The management committee is proposing to install shared EV charging docks in the visitor parking area. Feedback and votes can be cast via the Polls section on the app.", date: "2026-07-07", author: "Committee Office" },
-    { id: "n3", title: "Monsoon Preparedness Drive", category: "Safety", content: "Residents are requested to secure balcony pots and ensure screen doors are closed to avoid rainwater seepage. Guards have been instructed to clear storm drains hourly.", date: "2026-07-06", author: "Estate Manager" }
-  ],
-  chats: [
-    { id: "ch1", sender: "Aarav Sharma", role: "Resident", flat: "A-402", message: "Hi neighbors, does anyone have a recommendation for an AC technician? Ours stopped cooling today.", timestamp: "2026-07-08T10:15:00Z" },
-    { id: "ch2", sender: "Priya Patel", role: "Resident", flat: "B-105", message: "Hey Aarav! You can call Mr. Verma (+91 99201 22817). He is the society's regular tech, very reliable.", timestamp: "2026-07-08T10:30:00Z" },
-    { id: "ch3", sender: "Vikram Mehta", role: "Admin", flat: "Committee", message: "Gentle reminder to all residents: please cast your vote on the EV Charging station poll by this Sunday.", timestamp: "2026-07-08T11:00:00Z" }
-  ],
+  visitors: [],
+  maintenance: [],
+  complaints: [],
+  notices: [],
+  chats: [],
   amenities: [
     { id: "a1", name: "Clubhouse / Community Hall", capacity: 100, costPerHour: 500, description: "Fully air-conditioned hall with seating and sound system." },
     { id: "a2", name: "Gymnasium", capacity: 15, costPerHour: 0, description: "State-of-the-art weights and cardio equipment." },
     { id: "a3", name: "Badminton Court", capacity: 4, costPerHour: 100, description: "Indoor wooden court. Slots require pre-booking." }
   ],
-  amenityBookings: [
-    { id: "ab1", amenityId: "a1", amenityName: "Clubhouse / Community Hall", residentName: "Aarav Sharma", flat: "A-402", date: "2026-07-12", timeSlot: "18:00 - 21:00", cost: 1500, status: "Confirmed" }
-  ],
-  staff: [
-    { id: "st1", name: "Kamla Devi", type: "Maid", phone: "+91 99201 88273", rating: 4.8, flats: "A-402, B-105, B-101", status: "Checked-In", checkedInAt: "2026-07-08T07:45:00Z", code: "H-881" },
-    { id: "st2", name: "Rajinder Singh", type: "Driver", phone: "+91 88271 66152", rating: 4.5, flats: "A-402", status: "Checked-Out", checkedInAt: "2026-07-08T08:15:00Z", checkedOutAt: "2026-07-08T12:00:00Z", code: "H-192" },
-    { id: "st3", name: "Suresh Malik", type: "Milkman", phone: "+91 77123 44556", rating: 4.2, flats: "Multiple Blocks", status: "Checked-In", checkedInAt: "2026-07-08T06:10:00Z", code: "H-002" }
-  ],
-  parking: [
-    { id: "p1", slotNumber: "A-P45", flat: "A-402", owner: "Aarav Sharma", vehicleNumber: "DL-3C-AB-1234", vehicleType: "4-Wheeler" },
-    { id: "p2", slotNumber: "B-P09", flat: "B-105", owner: "Priya Patel", vehicleNumber: "HR-26-CD-5678", vehicleType: "4-Wheeler" },
-    { id: "p3", slotNumber: "A-P99", flat: "A-402", owner: "Aarav Sharma", vehicleNumber: "DL-3C-MM-5566", vehicleType: "2-Wheeler" }
-  ],
-  polls: [
-    {
-      id: "pl1",
-      question: "Should we install EV charging stations in the visitor parking area?",
-      options: [
-        { id: "o1", text: "Yes, immediately", votes: 42 },
-        { id: "o2", text: "Yes, but users should pay usage fees", votes: 28 },
-        { id: "o3", text: "No, unnecessary expense", votes: 5 }
-      ],
-      votedUsers: ["u1", "u2"],
-      totalVotes: 75,
-      endsAt: "2026-07-12T18:00:00Z"
-    },
-    {
-      id: "pl2",
-      question: "Proposed Independence Day celebration budget approval (INR 50,000)",
-      options: [
-        { id: "o4", text: "Approve budget", votes: 56 },
-        { id: "o5", text: "Reduce budget to 30,000", votes: 12 },
-        { id: "o6", text: "Cancel celebration", votes: 2 }
-      ],
-      votedUsers: ["u2"],
-      totalVotes: 70,
-      endsAt: "2026-08-01T18:00:00Z"
-    }
-  ],
-  guardAlerts: [
-    { id: "al1", sender: "Mahendra Singh (Guard)", type: "SOS / Emergency", message: "SOS Alert triggered from Block A elevator - resident trapped.", timestamp: "2026-07-08T12:15:00Z", status: "Active" }
-  ],
+  amenityBookings: [],
+  staff: [],
+  parking: [],
+  polls: [],
+  guardAlerts: [],
   superAdminPlans: [
     { id: "pln1", name: "GateKaru Essential", price: 1500, period: "Monthly", societies: 12, features: ["Visitor Pre-Approval", "Notice Board", "SOS Alerts"] },
     { id: "pln2", name: "GateKaru Premium Enterprise", price: 3500, period: "Monthly", societies: 38, features: ["All Essentials", "Society Accounting & ERP", "Maintenance Payments", "AI Assistants Suite"] }
   ],
-  approvals: [
+  approvals: [],
+  vehicles: [],
+  gateLogs: [],
+  coupons: [],
+  family: [],
+  documents: [],
+  programs: [
     {
-      id: "app-1",
-      visitorName: "Vijay Prasad",
-      type: "Delivery",
-      company: "Swiggy",
-      flat: "A-402",
-      hostName: "Aarav Sharma",
-      vehicleNumber: "DL-3C-S-5544",
-      status: "Waiting",
-      timestamp: "2026-07-08T21:10:00.000Z"
+      id: "p1",
+      title: "Ganesh Chaturthi Utsav (गणेशोत्सव)",
+      description: "Grand celebration of Ganesh Sthapna, daily Aarti, and cultural programs. Bhandara/Prasad distribution on final day.",
+      date: "2026-09-15",
+      startTime: "18:00",
+      endTime: "21:30",
+      location: "Main Central Temple Lawns",
+      coordinator: "Sahil (Secretary, Flat A-402)",
+      society: "Greenwood Heights Society"
     },
     {
-      id: "app-2",
-      visitorName: "Sonia Grewal",
-      type: "Guest",
-      company: "Personal",
-      flat: "B-105",
-      hostName: "Priya Patel",
-      vehicleNumber: "HR-26-Z-9898",
-      status: "Waiting",
-      timestamp: "2026-07-08T21:12:00.000Z"
+      id: "p2",
+      title: "Maha Aarti & Visarjan (महा आरती और विसर्जन)",
+      description: "Ganpati Visarjan processions with dhol tasha and safe immersion setups.",
+      date: "2026-09-24",
+      startTime: "16:00",
+      endTime: "20:00",
+      location: "Main Gate to Immersion Tank",
+      coordinator: "Yashika (Treasurer, Flat B-102)",
+      society: "Greenwood Heights Society"
+    },
+    {
+      id: "p3",
+      title: "Navratri Dandiya Night (डांडिया रास)",
+      description: "Garba and Dandiya Raas with traditional music, food stalls, and best dressed awards.",
+      date: "2026-10-12",
+      startTime: "19:00",
+      endTime: "23:00",
+      location: "Clubhouse Community Hall",
+      coordinator: "Vikram Mehta (Flat C-303)",
+      society: "Greenwood Heights Society"
+    },
+    {
+      id: "p4",
+      title: "Ganpati Sthapna Puja (गणेश स्थापना)",
+      description: "Society welcome puja of Lord Ganesha inside Yashika Residency lawns.",
+      date: "2026-09-15",
+      startTime: "09:00",
+      endTime: "12:00",
+      location: "Yashika Residency Lawns",
+      coordinator: "Yashika (Secretary)",
+      society: "Yashika Residency"
+    },
+    {
+      id: "p5",
+      title: "Navratri Garba Fest (गरबा उत्सव)",
+      description: "Daily Durga Puja followed by traditional Garba dancing.",
+      date: "2026-10-11",
+      startTime: "19:30",
+      endTime: "22:30",
+      location: "Yashika Residency Courtyard",
+      coordinator: "Rajesh (Committee Member)",
+      society: "Yashika Residency"
     }
   ],
-  vehicles: [
-    { plate: "DL-3C-AB-1234", type: "Car (Sedan)", rfidTag: "UHF-TAG-8821", owner: "Aarav Sharma", flat: "A-402", slot: "A-P45", insuranceExpiry: "2026-07-21", pucExpiry: "2026-07-14", rcFile: "rc_dl3cab1234.pdf", insuranceFile: "ins_dl3cab1234.pdf", pucFile: "puc_dl3cab1234.pdf", isEV: false, secondary: false, category: "Primary Vehicle" },
-    { plate: "DL-3C-MM-5566", type: "Two-Wheeler", rfidTag: "UHF-TAG-5529", owner: "Aarav Sharma", flat: "A-402", slot: "A-P99", insuranceExpiry: "2026-08-15", pucExpiry: "2026-07-14", rcFile: "rc_dl3cmm5566.pdf", insuranceFile: "ins_dl3cmm5566.pdf", pucFile: null, isEV: false, secondary: true, category: "Secondary Vehicle" },
-    { plate: "MH-12-PQ-9988", type: "Two-Wheeler (EV Scooter)", rfidTag: "UHF-TAG-2211", owner: "Aarav Sharma", flat: "A-402", slot: "A-P99", insuranceExpiry: "2027-01-10", pucExpiry: "2026-12-30", rcFile: null, insuranceFile: null, pucFile: null, isEV: true, secondary: false, category: "Two Wheeler" },
-    { plate: "HR-26-CD-5678", type: "Car (SUV/EV)", rfidTag: "UHF-TAG-1011", owner: "Priya Patel", flat: "B-105", slot: "B-P09", insuranceExpiry: "2026-10-02", pucExpiry: "2026-10-15", rcFile: "rc_hr26cd5678.pdf", insuranceFile: null, pucFile: null, isEV: true, secondary: false, category: "Primary Vehicle" }
-  ],
-  gateLogs: [
-    { id: "glog-1", date: "2026-07-09", time: "10:30:15 AM", gate: "Main Gate 1", type: "Entry", rfid: "UHF-TAG-8821", vehicleNo: "DL-3C-AB-1234", ownerName: "Aarav Sharma", flat: "A-402", status: "Success" },
-    { id: "glog-2", date: "2026-07-09", time: "11:15:22 AM", gate: "Main Gate 1", type: "Exit", rfid: "UHF-TAG-8821", vehicleNo: "DL-3C-AB-1234", ownerName: "Aarav Sharma", flat: "A-402", status: "Success" },
-    { id: "glog-3", date: "2026-07-08", time: "09:12:44 AM", gate: "Back Gate 2", type: "Entry", rfid: "UHF-TAG-5529", vehicleNo: "DL-3C-MM-5566", ownerName: "Aarav Sharma", flat: "A-402", status: "Success" },
-    { id: "glog-4", date: "2026-07-08", time: "12:45:10 PM", gate: "Back Gate 2", type: "Exit", rfid: "UHF-TAG-5529", vehicleNo: "DL-3C-MM-5566", ownerName: "Aarav Sharma", flat: "A-402", status: "Success" },
-    { id: "glog-5", date: "2026-07-07", time: "08:10:00 AM", gate: "Main Gate 1", type: "Entry", rfid: "UHF-TAG-1011", vehicleNo: "HR-26-CD-5678", ownerName: "Priya Patel", flat: "B-105", status: "Success" },
-    { id: "glog-6", date: "2026-07-06", time: "07:22:15 PM", gate: "Main Gate 1", type: "Entry", rfid: "UNKNOWN", vehicleNo: "DL-10-X-9988", ownerName: "Sanjay Kumar", flat: "A-402", status: "Success" },
-    { id: "glog-7", date: "2026-07-05", time: "04:45:00 PM", gate: "Main Gate 1", type: "Entry", rfid: "UHF-TAG-8821", vehicleNo: "DL-3C-AB-1234", ownerName: "Aarav Sharma", flat: "A-402", status: "Flagged" }
-  ],
-  coupons: [
-    { id: "cp1", code: "ZOMATOGATE", title: "Craving Hot, Delicious Food? 🍔", description: "60% OFF + Free Delivery exclusively for Greenwood Heights residents.", brand: "Zomato", expiryDate: "2026-12-31", usageLimit: 50, redeemCount: 0 },
-    { id: "cp2", code: "SWIGGYKARU", title: "Groceries & Gourmet in 10m! 🍕", description: "Save ₹150 on Instamart with free delivery on essentials.", brand: "Swiggy", expiryDate: "2026-10-31", usageLimit: 100, redeemCount: 0 }
-  ],
-  family: [
-    { id: "fam1", flat: "A-402", name: "Suman Sharma", relation: "Spouse" },
-    { id: "fam2", flat: "A-402", name: "Karan Sharma", relation: "Son" }
-  ],
-  documents: [
-    { id: "doc1", flat: "A-402", title: "Rent Agreement Greenwood Block A.pdf", type: "Rent Deed", uploadDate: "2026-07-01", verified: true, verifiedBy: "Admin Vikram Mehta" },
-    { id: "doc2", flat: "A-402", title: "Electricity Bill May 2026.pdf", type: "Utility Bill", uploadDate: "2026-07-05", verified: true, verifiedBy: "System Auto-Check" }
-  ]
+  festivalHub: {
+    coordinators: [
+      { id: "fc1", name: "Rohan Das", flat: "Beta-502", phone: "+91 90022 33445", society: "Greenwood Heights Society" },
+      { id: "fc2", name: "Aarav Sharma", flat: "Alpha-101", phone: "+91 98765 43210", society: "Greenwood Heights Society" }
+    ],
+    financials: [
+      {
+        society: "Greenwood Heights Society",
+        totalEstimatedExpense: 50000,
+        varganiPerFlat: 500,
+        societyFundContribution: 10000,
+        activeFestival: "Ganeshotsav"
+      }
+    ],
+    quotations: [
+      { id: "q1", item: "Pandal Setup & Ganesh Sthapna Decor", vendor: "Sai Decorators", amount: 22000, status: "Approved", submittedBy: "Rohan Das", society: "Greenwood Heights Society" },
+      { id: "q2", item: "Dhol Tasha & Sound System (Aarti)", vendor: "Nashik Dhol Pathak", amount: 15000, status: "Approved", submittedBy: "Aarav Sharma", society: "Greenwood Heights Society" },
+      { id: "q3", item: "Visarjan Bhandara Prasad Catering", vendor: "Saraswati Catering", amount: 13000, status: "Pending", submittedBy: "Rohan Das", society: "Greenwood Heights Society" }
+    ],
+    varganiCollections: [
+      { id: "vc1", residentName: "Aarav Sharma", flat: "Alpha-101", amountPaid: 500, status: "Paid", society: "Greenwood Heights Society" },
+      { id: "vc2", residentName: "Meera Nair", flat: "Alpha-404", amountPaid: 500, status: "Paid", society: "Greenwood Heights Society" },
+      { id: "vc3", residentName: "Rohan Das", flat: "Beta-502", amountPaid: 500, status: "Paid", society: "Greenwood Heights Society" },
+      { id: "vc4", residentName: "Priya Patel", flat: "Beta-1201", amountPaid: 0, status: "Pending", society: "Greenwood Heights Society" },
+      { id: "vc5", residentName: "Vikram Sen", flat: "Gamma-801", amountPaid: 200, status: "Pending", society: "Greenwood Heights Society" }
+    ]
+  }
 };
 
 let db: any = defaultDb;
@@ -498,6 +401,11 @@ app.post("/api/send-otp", (req, res) => {
     return res.status(444).json({ error: "This mobile number is not registered on GateKaru ERP. Please register as a new member." });
   }
 
+  // Resident Pending Approval block
+  if (user.role === "resident" && user.isApproved === false) {
+    return res.status(403).json({ error: "Your registration is pending approval from the Society Committee. You will receive an SMS alert once approved." });
+  }
+
   // Generate standard 4-digit OTP
   const otp = Math.floor(1000 + Math.random() * 9000).toString();
   activeOtps[cleanPhone] = otp;
@@ -539,12 +447,17 @@ app.post("/api/verify-otp", (req, res) => {
     return res.status(404).json({ error: "User profile not found." });
   }
 
+  // Resident Pending Approval block
+  if (user.role === "resident" && user.isApproved === false) {
+    return res.status(403).json({ error: "Your registration is pending approval from the Society Committee." });
+  }
+
   delete activeOtps[cleanPhone];
 
   const token = jwt.sign(
     { id: user.id, phone: user.phone, role: user.role },
     JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "36500d" }
   );
 
   res.json({
@@ -556,7 +469,7 @@ app.post("/api/verify-otp", (req, res) => {
 });
 
 app.post("/api/register", (req, res) => {
-  const { name, phone, email, role, flat, type, vehicleNo, shift, gate, idCard, designation, committee, organization } = req.body;
+  const { name, phone, email, role, flat, type, vehicleNo, shift, gate, idCard, designation, committee, organization, society } = req.body;
   if (!name || !phone || !role) {
     return res.status(400).json({ error: "Name, phone, and role are required." });
   }
@@ -566,6 +479,9 @@ app.post("/api/register", (req, res) => {
   if (exists) {
     return res.status(400).json({ error: "This mobile number is already registered on GateKaru." });
   }
+
+  // Self-registered residents default to isApproved = false
+  const isApproved = role === "resident" ? false : true;
 
   const newUser = {
     id: `u${db.users.length + 1}`,
@@ -582,6 +498,8 @@ app.post("/api/register", (req, res) => {
     designation: designation || undefined,
     committee: committee || undefined,
     organization: organization || undefined,
+    society: society || "Greenwood Heights Society",
+    isApproved,
     registeredAt: new Date().toISOString()
   };
 
@@ -594,15 +512,66 @@ app.post("/api/register", (req, res) => {
   const token = jwt.sign(
     { id: newUser.id, phone: newUser.phone, role: newUser.role },
     JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "36500d" }
   );
 
   res.status(201).json({
     success: true,
-    message: "Registration completed successfully.",
+    message: isApproved 
+      ? "Registration completed successfully." 
+      : "रजिस्ट्रेशन सफल हुआ! सोसाइटी कमिटी के अप्रूवल के बाद आप ऐप का इस्तेमाल कर पाएंगे। (Registration successful! Pending committee approval)",
     user: newUser,
     otp: welcomeOtp,
     token
+  });
+});
+
+// GET list of societies
+app.get("/api/societies", (req, res) => {
+  res.json(db.societies || []);
+});
+
+// Approve a registered resident
+app.post("/api/users/approve", (req, res) => {
+  const { id } = req.body;
+  if (!id) {
+    return res.status(400).json({ error: "User ID is required." });
+  }
+
+  const user = db.users.find((u: any) => u.id === id);
+  if (!user) {
+    return res.status(404).json({ error: "User not found." });
+  }
+
+  user.isApproved = true;
+  saveDb(db);
+
+  res.json({
+    success: true,
+    message: `Resident "${user.name}" approved successfully! They can now log in.`,
+    user
+  });
+});
+
+// Reject a registered resident (remove them from directory)
+app.post("/api/users/reject", (req, res) => {
+  const { id } = req.body;
+  if (!id) {
+    return res.status(400).json({ error: "User ID is required." });
+  }
+
+  const index = db.users.findIndex((u: any) => u.id === id);
+  if (index === -1) {
+    return res.status(404).json({ error: "User not found." });
+  }
+
+  const user = db.users[index];
+  db.users.splice(index, 1);
+  saveDb(db);
+
+  res.json({
+    success: true,
+    message: `Resident "${user.name}" registration request rejected and removed.`
   });
 });
 
@@ -622,6 +591,11 @@ app.post("/api/login", (req, res) => {
     return res.status(444).json({ error: "User profile not found. Please register." });
   }
 
+  // Resident Pending Approval block
+  if (user.role === "resident" && user.isApproved === false) {
+    return res.status(403).json({ error: "Your account is pending approval from the Society Committee." });
+  }
+
   if (otp) {
     const expected = activeOtps[cleanPhone];
     if (otp !== expected && otp !== "1234" && otp !== "9999") {
@@ -638,7 +612,7 @@ app.post("/api/login", (req, res) => {
   const token = jwt.sign(
     { id: user.id, phone: user.phone, role: user.role },
     JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "36500d" }
   );
 
   res.json({
@@ -656,6 +630,51 @@ app.post("/api/login", (req, res) => {
 // 1. Core Profile Selection
 app.get("/api/users", (req, res) => {
   res.json(db.users);
+});
+
+// Create/Add a new Committee Member by Society Admin
+app.post("/api/committee/add", (req, res) => {
+  const { name, phone, email, designation, committee, society } = req.body;
+  if (!name || !phone || !designation) {
+    return res.status(400).json({ error: "Name, phone, and designation are required." });
+  }
+
+  const cleanPhone = phone.replace(/[^0-9]/g, "");
+  const exists = db.users.some((u: any) => u.phone.replace(/[^0-9]/g, "") === cleanPhone);
+  if (exists) {
+    return res.status(400).json({ error: "This mobile number is already registered on GateKaru." });
+  }
+
+  const newUser = {
+    id: `u${db.users.length + 1}`,
+    name,
+    phone,
+    email: email || `${name.toLowerCase().replace(/\s+/g, "")}@example.com`,
+    role: "admin",
+    designation,
+    committee: committee || "Society Management Committee",
+    society: society || "Greenwood Heights Society",
+    isApproved: true,
+    registeredAt: new Date().toISOString()
+  };
+
+  db.users = db.users || [];
+  db.users.push(newUser);
+  saveDb(db);
+  res.status(201).json({ success: true, message: `Committee member "${name}" added successfully.`, user: newUser });
+});
+
+// Delete/Remove a user or Committee Member
+app.delete("/api/users/:id", (req, res) => {
+  const { id } = req.params;
+  db.users = db.users || [];
+  const initialLen = db.users.length;
+  db.users = db.users.filter((u: any) => u.id !== id);
+  if (db.users.length === initialLen) {
+    return res.status(404).json({ error: "User not found." });
+  }
+  saveDb(db);
+  res.json({ success: true, message: "User removed successfully." });
 });
 
 app.post("/api/users/register", (req, res) => {
@@ -690,6 +709,26 @@ app.post("/api/users/register", (req, res) => {
 
   db.users.push(newUser);
   res.status(201).json({ success: true, user: newUser });
+});
+
+app.post("/api/users/update-profile", (req, res) => {
+  const { id, name, phone, email, emergencyPhone } = req.body;
+  if (!id) {
+    return res.status(400).json({ error: "User ID is required." });
+  }
+
+  const user = db.users.find((u: any) => u.id === id);
+  if (!user) {
+    return res.status(404).json({ error: "User not found." });
+  }
+
+  if (name) user.name = name;
+  if (phone) user.phone = phone;
+  if (email !== undefined) user.email = email;
+  if (emergencyPhone !== undefined) user.emergencyPhone = emergencyPhone;
+
+  saveDb(db);
+  res.json({ success: true, message: "Profile updated successfully.", user });
 });
 
 // 2. Visitors Management
@@ -987,6 +1026,266 @@ app.post("/api/notices", (req, res) => {
 
   db.notices.unshift(newNotice);
   res.status(201).json(newNotice);
+});
+
+// Programs (Festival & Society Events) APIs
+app.get("/api/programs", (req, res) => {
+  res.json(db.programs || []);
+});
+
+app.post("/api/programs", (req, res) => {
+  const { title, description, date, startTime, endTime, location, coordinator, society, targetFloors } = req.body;
+  if (!title || !date || !startTime) {
+    return res.status(400).json({ error: "Title, date, and start time are required." });
+  }
+
+  const newProgram = {
+    id: `p_${Date.now()}`,
+    title,
+    description: description || "",
+    date,
+    startTime,
+    endTime: endTime || "",
+    location: location || "Society Premises",
+    coordinator: coordinator || "Committee Member",
+    society: society || "Greenwood Heights Society",
+    targetFloors: targetFloors || "All Floors"
+  };
+
+  db.programs = db.programs || [];
+  db.programs.unshift(newProgram);
+  saveDb(db);
+  res.status(201).json(newProgram);
+});
+
+app.delete("/api/programs/:id", (req, res) => {
+  const { id } = req.params;
+  db.programs = db.programs || [];
+  const initialLen = db.programs.length;
+  db.programs = db.programs.filter((p: any) => p.id !== id);
+  if (db.programs.length === initialLen) {
+    return res.status(404).json({ error: "Program not found" });
+  }
+  saveDb(db);
+  res.json({ success: true, message: "Program deleted successfully." });
+});
+
+// ==========================================
+// GANESHOTSAV & NAVRATRI FESTIVAL HUB APIs
+// ==========================================
+
+function ensureFestivalHubInitialized() {
+  if (!db.festivalHub) {
+    db.festivalHub = {};
+  }
+  if (!db.festivalHub.coordinators) {
+    db.festivalHub.coordinators = [
+      { id: "fc1", name: "Rohan Das", flat: "Beta-502", phone: "+91 90022 33445", society: "Greenwood Heights Society" },
+      { id: "fc2", name: "Aarav Sharma", flat: "Alpha-101", phone: "+91 98765 43210", society: "Greenwood Heights Society" }
+    ];
+  }
+  if (!db.festivalHub.financials) {
+    db.festivalHub.financials = [
+      {
+        society: "Greenwood Heights Society",
+        totalEstimatedExpense: 50000,
+        varganiPerFlat: 500,
+        societyFundContribution: 10000,
+        activeFestival: "Ganeshotsav"
+      }
+    ];
+  }
+  if (!db.festivalHub.quotations) {
+    db.festivalHub.quotations = [
+      { id: "q1", item: "Pandal Setup & Ganesh Sthapna Decor", vendor: "Sai Decorators", amount: 22000, status: "Approved", submittedBy: "Rohan Das", society: "Greenwood Heights Society" },
+      { id: "q2", item: "Dhol Tasha & Sound System (Aarti)", vendor: "Nashik Dhol Pathak", amount: 15000, status: "Approved", submittedBy: "Aarav Sharma", society: "Greenwood Heights Society" },
+      { id: "q3", item: "Visarjan Bhandara Prasad Catering", vendor: "Saraswati Catering", amount: 13000, status: "Pending", submittedBy: "Rohan Das", society: "Greenwood Heights Society" }
+    ];
+  }
+  if (!db.festivalHub.varganiCollections) {
+    db.festivalHub.varganiCollections = [
+      { id: "vc1", residentName: "Aarav Sharma", flat: "Alpha-101", amountPaid: 500, status: "Paid", society: "Greenwood Heights Society" },
+      { id: "vc2", residentName: "Meera Nair", flat: "Alpha-404", amountPaid: 500, status: "Paid", society: "Greenwood Heights Society" },
+      { id: "vc3", residentName: "Rohan Das", flat: "Beta-502", amountPaid: 500, status: "Paid", society: "Greenwood Heights Society" },
+      { id: "vc4", residentName: "Priya Patel", flat: "Beta-1201", amountPaid: 0, status: "Pending", society: "Greenwood Heights Society" },
+      { id: "vc5", residentName: "Vikram Sen", flat: "Gamma-801", amountPaid: 200, status: "Pending", society: "Greenwood Heights Society" }
+    ];
+  }
+}
+
+app.get("/api/festival/hub", (req, res) => {
+  ensureFestivalHubInitialized();
+  const society = req.query.society || "Greenwood Heights Society";
+  
+  const coordinators = db.festivalHub.coordinators.filter((c: any) => c.society === society);
+  
+  let financials = db.festivalHub.financials.find((f: any) => f.society === society);
+  if (!financials) {
+    financials = {
+      society,
+      totalEstimatedExpense: 50000,
+      varganiPerFlat: 500,
+      societyFundContribution: 10000,
+      activeFestival: "Ganeshotsav"
+    };
+    db.festivalHub.financials.push(financials);
+    saveDb(db);
+  }
+  
+  const quotations = db.festivalHub.quotations.filter((q: any) => q.society === society);
+  const varganiCollections = db.festivalHub.varganiCollections.filter((v: any) => v.society === society);
+  const residents = db.users.filter((u: any) => u.role === "resident" && u.society === society && u.isApproved !== false);
+
+  res.json({
+    coordinators,
+    financials,
+    quotations,
+    varganiCollections,
+    residents
+  });
+});
+
+app.post("/api/festival/financials", (req, res) => {
+  ensureFestivalHubInitialized();
+  const { totalEstimatedExpense, varganiPerFlat, societyFundContribution, activeFestival, society } = req.body;
+  if (!society) {
+    return res.status(400).json({ error: "Society is required." });
+  }
+
+  let financials = db.festivalHub.financials.find((f: any) => f.society === society);
+  if (!financials) {
+    financials = { society };
+    db.festivalHub.financials.push(financials);
+  }
+
+  financials.totalEstimatedExpense = Number(totalEstimatedExpense) || 0;
+  financials.varganiPerFlat = Number(varganiPerFlat) || 0;
+  financials.societyFundContribution = Number(societyFundContribution) || 0;
+  financials.activeFestival = activeFestival || "Ganeshotsav";
+
+  saveDb(db);
+  res.json({ success: true, message: "Festival financial parameters updated successfully.", financials });
+});
+
+app.post("/api/festival/coordinators", (req, res) => {
+  ensureFestivalHubInitialized();
+  const { name, flat, phone, society } = req.body;
+  if (!name || !society) {
+    return res.status(400).json({ error: "Name and Society are required." });
+  }
+
+  const newCoordinator = {
+    id: `fc_${Date.now()}`,
+    name,
+    flat: flat || "",
+    phone: phone || "",
+    society
+  };
+
+  db.festivalHub.coordinators.push(newCoordinator);
+  saveDb(db);
+  res.status(201).json({ success: true, message: `${name} has been assigned as Festival Coordinator.`, coordinator: newCoordinator });
+});
+
+app.delete("/api/festival/coordinators/:id", (req, res) => {
+  ensureFestivalHubInitialized();
+  const { id } = req.params;
+  const initialLen = db.festivalHub.coordinators.length;
+  db.festivalHub.coordinators = db.festivalHub.coordinators.filter((c: any) => c.id !== id);
+  
+  if (db.festivalHub.coordinators.length === initialLen) {
+    return res.status(404).json({ error: "Coordinator not found" });
+  }
+  
+  saveDb(db);
+  res.json({ success: true, message: "Coordinator removed successfully." });
+});
+
+app.post("/api/festival/quotations", (req, res) => {
+  ensureFestivalHubInitialized();
+  const { item, vendor, amount, submittedBy, society } = req.body;
+  if (!item || !vendor || !amount || !society) {
+    return res.status(400).json({ error: "Item, Vendor, Amount, and Society are required." });
+  }
+
+  const newQuote = {
+    id: `q_${Date.now()}`,
+    item,
+    vendor,
+    amount: Number(amount) || 0,
+    status: "Pending",
+    submittedBy: submittedBy || "Society Member",
+    society
+  };
+
+  db.festivalHub.quotations.push(newQuote);
+  saveDb(db);
+  res.status(201).json({ success: true, message: "Quotation added successfully.", quotation: newQuote });
+});
+
+app.post("/api/festival/quotations/status", (req, res) => {
+  ensureFestivalHubInitialized();
+  const { id, status } = req.body;
+  if (!id || !status) {
+    return res.status(400).json({ error: "Quotation ID and Status are required." });
+  }
+
+  const quote = db.festivalHub.quotations.find((q: any) => q.id === id);
+  if (!quote) {
+    return res.status(404).json({ error: "Quotation not found" });
+  }
+
+  quote.status = status;
+  saveDb(db);
+  res.json({ success: true, message: `Quotation status updated to ${status}.`, quotation: quote });
+});
+
+app.delete("/api/festival/quotations/:id", (req, res) => {
+  ensureFestivalHubInitialized();
+  const { id } = req.params;
+  const initialLen = db.festivalHub.quotations.length;
+  db.festivalHub.quotations = db.festivalHub.quotations.filter((q: any) => q.id !== id);
+  
+  if (db.festivalHub.quotations.length === initialLen) {
+    return res.status(404).json({ error: "Quotation not found" });
+  }
+  
+  saveDb(db);
+  res.json({ success: true, message: "Quotation removed successfully." });
+});
+
+app.post("/api/festival/vargani", (req, res) => {
+  ensureFestivalHubInitialized();
+  const { id, residentName, flat, amountPaid, status, society } = req.body;
+  if (!residentName || !flat || !society) {
+    return res.status(400).json({ error: "Resident Name, Flat, and Society are required." });
+  }
+
+  if (id) {
+    const collection = db.festivalHub.varganiCollections.find((v: any) => v.id === id);
+    if (collection) {
+      collection.residentName = residentName;
+      collection.flat = flat;
+      collection.amountPaid = Number(amountPaid) || 0;
+      collection.status = status || "Pending";
+    } else {
+      return res.status(404).json({ error: "Collection record not found" });
+    }
+    saveDb(db);
+    res.json({ success: true, message: "Vargani payment record updated.", collection });
+  } else {
+    const newCollection = {
+      id: `vc_${Date.now()}`,
+      residentName,
+      flat,
+      amountPaid: Number(amountPaid) || 0,
+      status: status || "Pending",
+      society
+    };
+    db.festivalHub.varganiCollections.push(newCollection);
+    saveDb(db);
+    res.status(201).json({ success: true, message: "Vargani contribution recorded successfully.", collection: newCollection });
+  }
 });
 
 // **AI Feature 2: AI Notice Generator** (Helps admin draft complete notice copies from a short prompt)
@@ -1318,6 +1617,57 @@ app.post("/api/settings", (req, res) => {
   res.json({ message: "Settings updated successfully", settings: db.settings });
 });
 
+// POST purge mock/dummy database entries
+app.post("/api/database/purge-demo", (req, res) => {
+  const { mode, keepUserId } = req.body; // mode can be "all" or "transactions"
+
+  // 1. Clear transaction records
+  db.visitors = [];
+  db.maintenance = [];
+  db.complaints = [];
+  db.notices = [];
+  db.chats = [];
+  db.amenityBookings = [];
+  db.guardAlerts = [];
+  db.family = [];
+  db.documents = [];
+  db.coupons = [];
+  db.gateLogs = [];
+
+  // 2. Clear staff
+  db.staff = [];
+
+  // 3. Reset parking spots to default empty
+  if (db.parking && db.parking.length > 0) {
+    db.parking = db.parking.map((p: any) => ({
+      ...p,
+      status: "Available",
+      assignedTo: "",
+      flat: "",
+      vehicleNo: ""
+    }));
+  }
+
+  // 4. Reset polls
+  db.polls = [];
+
+  if (mode === "all") {
+    // Keep only super admins (like u5, u6) or the currently active user who issued the purge
+    db.users = db.users.filter((u: any) => {
+      const isSuperAdmin = u.role === "super_admin";
+      const isCurrentActive = keepUserId && u.id === keepUserId;
+      return isSuperAdmin || isCurrentActive;
+    });
+  }
+
+  saveDb(db);
+  res.json({ 
+    success: true, 
+    message: "Database successfully cleared of mock/dummy records.",
+    db 
+  });
+});
+
 // POST test SMS dispatch
 app.post("/api/settings/test-sms", async (req, res) => {
   const { phone, message } = req.body;
@@ -1412,6 +1762,52 @@ app.delete("/api/documents/:id", (req, res) => {
 // GET coupons
 app.get("/api/coupons", (req, res) => {
   res.json(db.coupons);
+});
+
+// GET jobskaru applications list
+app.get("/api/jobskaru-applications", (req, res) => {
+  res.json([
+    {
+      id: "app1",
+      name: "JobsKaru Pune Local Jobs",
+      tagline: "Pune's #1 verified local job search & recruitment portal.",
+      url: "https://pune.jobskaru.com",
+      category: "Recruitment",
+      icon: "Briefcase"
+    },
+    {
+      id: "app2",
+      name: "GateKaru Smart Gatekeeper ERP",
+      tagline: "This Platform: Enterprise security, visitor tracking & gate pass manager.",
+      url: "https://gate.jobskaru.com",
+      category: "Society ERP",
+      icon: "Home"
+    },
+    {
+      id: "app3",
+      name: "MaidKaru Pune",
+      tagline: "Find & hire verified daily maids, cooks, and helpers near Pune areas.",
+      url: "https://maids.jobskaru.com",
+      category: "Domestic Help",
+      icon: "UserCheck"
+    },
+    {
+      id: "app4",
+      name: "DeliveryKaru Hyperlocal",
+      tagline: "Superfast parcel, medicine & tiffin delivery across Pune city.",
+      url: "https://delivery.jobskaru.com",
+      category: "Logistics",
+      icon: "Truck"
+    },
+    {
+      id: "app5",
+      name: "ServiceKaru Pune",
+      tagline: "On-demand plumbers, electricians, AC mechanics & carpenters.",
+      url: "https://services.jobskaru.com",
+      category: "Home Services",
+      icon: "Wrench"
+    }
+  ]);
 });
 
 // POST add coupon (Admin only)
@@ -1979,8 +2375,61 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  // Setup WebSocket Server for real-time WebSocket connection health status
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on("upgrade", (request, socket, head) => {
+    try {
+      const urlObj = new URL(request.url || "", `http://${request.headers.host || "localhost"}`);
+      const pathname = urlObj.pathname;
+      if (pathname === "/api/ws" || pathname === "/ws") {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          wss.emit("connection", ws, request);
+        });
+      } else {
+        socket.destroy();
+      }
+    } catch (err) {
+      socket.destroy();
+    }
+  });
+
+  wss.on("connection", (ws) => {
+    console.log("WebSocket client connected");
+    
+    // Send initial status message
+    ws.send(JSON.stringify({ type: "health", status: "optimal", timestamp: new Date().toISOString() }));
+
+    // Keepalive ping interval
+    const interval = setInterval(() => {
+      if (ws.readyState === ws.OPEN) {
+        ws.ping();
+      }
+    }, 25000);
+
+    ws.on("message", (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        if (data.type === "ping") {
+          ws.send(JSON.stringify({ type: "pong", timestamp: new Date().toISOString() }));
+        }
+      } catch (err) {
+        // Safe catch
+      }
+    });
+
+    ws.on("close", () => {
+      clearInterval(interval);
+      console.log("WebSocket client disconnected");
+    });
+
+    ws.on("error", (err) => {
+      console.error("WebSocket client connection error:", err);
+    });
   });
 }
 

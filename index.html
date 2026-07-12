@@ -15,6 +15,103 @@
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased selection:bg-blue-500 selection:text-white">
     <div id="root"></div>
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error("GATEKARU DIAGNOSTIC ERROR CATCHER:", e.error || e.message);
+        
+        var stack = e.error && e.error.stack ? e.error.stack : 'N/A';
+        
+        // Report error to backend logs
+        fetch('/api/log-error', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: e.message || 'Uncaught Error',
+            filename: e.filename || 'unknown',
+            lineno: e.lineno || 0,
+            colno: e.colno || 0,
+            stack: stack
+          })
+        }).catch(function(err) { console.error("Failed to post log:", err); });
+
+        var errDiv = document.getElementById('gatekaru-debug-err') || document.createElement('div');
+        errDiv.id = 'gatekaru-debug-err';
+        errDiv.style.position = 'fixed';
+        errDiv.style.top = '0';
+        errDiv.style.left = '0';
+        errDiv.style.width = '100vw';
+        errDiv.style.height = '100vh';
+        errDiv.style.backgroundColor = '#0b0f19';
+        errDiv.style.color = '#ef4444';
+        errDiv.style.padding = '32px';
+        errDiv.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+        errDiv.style.zIndex = '9999999';
+        errDiv.style.overflow = 'auto';
+        errDiv.style.boxSizing = 'border-box';
+        
+        errDiv.innerHTML = '<div style="max-width: 800px; margin: 0 auto; background: #1e1b4b; border: 2px solid #ef4444; padding: 24px; borderRadius: 12px; boxShadow: 0 25px 50px -12px rgba(0,0,0,0.5);">' +
+                           '<h2 style="color: #f87171; margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid #ef4444; padding-bottom: 12px; display: flex; align-items: center; gap: 8px;">🚨 GateKaru Startup Error</h2>' +
+                           '<p style="font-size: 1.1rem; color: #fca5a5;"><strong>Error:</strong> ' + e.message + '</p>' +
+                           '<p style="color: #cbd5e1; font-size: 0.9rem;"><strong>Location:</strong> ' + e.filename + ' (Line ' + e.lineno + ', Col ' + e.colno + ')</p>' +
+                           '<div style="background: #090d16; padding: 16px; border-radius: 8px; border: 1px solid #374151; font-size: 0.85rem; color: #9ca3af; overflow-x: auto; white-space: pre-wrap; font-family: monospace;">' +
+                           '<strong>Stack Trace:</strong>\n' + stack +
+                           '</div>' +
+                           '<div style="margin-top: 20px; display: flex; gap: 12px;">' +
+                           '  <button onclick="localStorage.clear(); location.reload();" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: sans-serif;">Clear Cache &amp; Reload</button>' +
+                           '  <button onclick="location.reload();" style="background: #475569; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-family: sans-serif;">Retry</button>' +
+                           '</div>' +
+                           '</div>';
+        if (!document.getElementById('gatekaru-debug-err')) {
+          document.body.appendChild(errDiv);
+        }
+      });
+    </script>
+    <script>
+      // Self-Healing Script for GateKaru
+      // If the app remains blank (React fails to mount onto #root) after 2.5 seconds,
+      // we assume there is a stale/buggy bundle cached by the service worker or browser.
+      // This script will automatically purge all service workers, clear caches, clear local state,
+      // and perform a clean network-first reload.
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          var root = document.getElementById('root');
+          if (root && root.innerHTML.trim() === '') {
+            console.warn("GateKaru detected a blank screen. Executing automated self-healing recovery...");
+            
+            // Unregister all service workers
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for (var i = 0; i < registrations.length; i++) {
+                  registrations[i].unregister();
+                }
+              });
+            }
+            
+            // Delete all caches
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                for (var i = 0; i < names.length; i++) {
+                  caches.delete(names[i]);
+                }
+              });
+            }
+            
+            // Clear storage
+            try {
+              localStorage.clear();
+              sessionStorage.clear();
+            } catch (e) {
+              console.error(e);
+            }
+            
+            // Wait slightly for cleanups, then reload
+            setTimeout(function() {
+              location.reload(true);
+            }, 300);
+          }
+        }, 2500);
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

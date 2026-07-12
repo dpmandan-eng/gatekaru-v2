@@ -124,7 +124,7 @@ export default function GuardPortal({
   const t = (key: string, def: string) => getTranslation(globalLang, key, def);
 
   // Live Pending Gate Approvals database simulation
-  const [approvals, setApprovals] = useState<PendingApproval[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
 
   // Spoken Text language translations and configurations
   const speakLangText = (key: string, variables: Record<string, string> = {}) => {
@@ -249,17 +249,17 @@ export default function GuardPortal({
 
   // Monitor approvals state for status changes from Waiting -> Approved
   useEffect(() => {
-    if (approvals.length > 0) {
+    if (pendingApprovals.length > 0) {
       if (isFirstLoadRef.current) {
         // Populate existing Approved entries to avoid playing they are already approved
-        approvals.forEach(app => {
+        pendingApprovals.forEach(app => {
           if (app.status === "Approved") {
             announcedApprovedIdsRef.current.add(app.id);
           }
         });
         isFirstLoadRef.current = false;
       } else {
-        approvals.forEach(app => {
+        pendingApprovals.forEach(app => {
           if (app.status === "Approved" && !announcedApprovedIdsRef.current.has(app.id)) {
             announcedApprovedIdsRef.current.add(app.id);
             
@@ -278,14 +278,14 @@ export default function GuardPortal({
         });
       }
     }
-  }, [approvals, globalLang]);
+  }, [pendingApprovals, globalLang]);
 
   // Synchronize approvals with server in real-time
   useEffect(() => {
     const fetchApprovals = async () => {
       try {
         const data = await safeFetchJson("/api/approvals", undefined, []);
-        setApprovals(data);
+        setPendingApprovals(data);
       } catch (err) {
         console.error("Error loading approvals:", err);
       }
@@ -380,7 +380,7 @@ export default function GuardPortal({
         })
       }, null);
       if (data) {
-        setApprovals(prev => [data, ...prev]);
+        setPendingApprovals(prev => [data, ...prev]);
         speakLangText("sending_pass");
         alert(`Gate authorization requested from ${resident?.name || "Resident"} (Flat ${activeCallFlat})!`);
       }
@@ -398,7 +398,7 @@ export default function GuardPortal({
         body: JSON.stringify({ id, action })
       }, null);
       if (data && data.approval) {
-        setApprovals(prev => prev.map(app => app.id === id ? data.approval : app));
+        setPendingApprovals(prev => prev.map(app => app.id === id ? data.approval : app));
         
         if (action === "Approved") {
           playDialTone(880, 0.15);
@@ -431,7 +431,7 @@ export default function GuardPortal({
     });
 
     // Remove from active queue
-    setApprovals(prev => prev.filter(a => a.id !== app.id));
+    setPendingApprovals(prev => prev.filter(a => a.id !== app.id));
     speakLangText("authorized_checkin", { visitor: app.visitorName });
     alert(`Check-In entry authorized! Guest pass is active for ${app.visitorName}.`);
   };
@@ -570,7 +570,7 @@ export default function GuardPortal({
         if (!data) {
           throw new Error("Failed to create approval");
         }
-        setApprovals(prev => [data, ...prev]);
+        setPendingApprovals(prev => [data, ...prev]);
         speakLangText("sent_notification", { flat: walkinFlat.replace("-", " "), resident: residentName });
         alert(`Gate authorization request sent to ${residentName}'s mobile application! Redirecting you to Intercom & Approvals page to simulate or wait for response.`);
         setActiveTab("intercom");
@@ -1326,12 +1326,12 @@ export default function GuardPortal({
                 </div>
 
                 <div className="space-y-4">
-                  {approvals.length === 0 ? (
+                  {pendingApprovals.length === 0 ? (
                     <div className="p-8 border border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-xs">
                       No pending app approvals at this moment.
                     </div>
                   ) : (
-                    approvals.map(app => (
+                    pendingApprovals.map(app => (
                       <div 
                         key={app.id} 
                         className={`p-4 rounded-xl border transition space-y-3.5 ${

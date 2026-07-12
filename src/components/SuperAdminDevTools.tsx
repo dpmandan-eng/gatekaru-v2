@@ -332,6 +332,55 @@ export default function SuperAdminDevTools() {
     }
   };
 
+  // Database Purge / Clean Sandbox entries
+  const [purgeMode, setPurgeMode] = useState<"transactions" | "all">("transactions");
+  const [isPurging, setIsPurging] = useState(false);
+  const [purgeResult, setPurgeResult] = useState<string | null>(null);
+
+  const handlePurgeDatabase = async () => {
+    const confirmMessage = purgeMode === "all" 
+      ? "⚠️ DANGER / ख़तरा: This will delete ALL mock transactions AND all resident/guard user accounts, keeping only Super Admin. Are you absolutely sure?" 
+      : "🧹 This will clear all visitor records, notice board posts, complaints, chat history, alerts, etc., but keep all user profiles intact. Proceed?";
+      
+    if (!window.confirm(confirmMessage)) return;
+
+    setIsPurging(true);
+    setPurgeResult(null);
+
+    try {
+      let keepUserId = null;
+      try {
+        const saved = localStorage.getItem("gatekaru_user");
+        if (saved) {
+          const uObj = JSON.parse(saved);
+          keepUserId = uObj.id;
+        }
+      } catch (e) {
+        console.error("Error reading current user for purge exclusion:", e);
+      }
+
+      const response = await fetch("/api/database/purge-demo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: purgeMode, keepUserId })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setPurgeResult("✅ Database successfully cleared of all selected dummy entries! Reloading app in 3 seconds...");
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+      } else {
+        setPurgeResult(`❌ Error purging database: ${data.error || "Unknown error occurred"}`);
+      }
+    } catch (err: any) {
+      setPurgeResult(`❌ Network Error: ${err.message || String(err)}`);
+    } finally {
+      setIsPurging(false);
+    }
+  };
+
   return (
     <div className="space-y-6 select-none animate-fadeIn text-slate-300">
       
@@ -646,6 +695,69 @@ export default function SuperAdminDevTools() {
             <p className="text-[9.5px] text-slate-400 text-center italic">
               Contains built static assets (dist), configured Node backend (server.js, db_store.ts, seed configs), Android Capacitor, and simple step-by-step documentation.
             </p>
+          </div>
+
+          {/* Clean Database / Purge Demo Records */}
+          <div className="bg-gradient-to-r from-rose-950/40 to-red-950/40 border border-rose-500/30 rounded-2xl p-5 space-y-4">
+            <div>
+              <span className="text-[10px] bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded font-black uppercase tracking-wider">
+                Database Purge Utility
+              </span>
+              <h3 className="font-extrabold text-white text-sm uppercase tracking-wider mt-1.5 flex items-center gap-1.5">
+                🧹 Clear Mock / Dummy Entries
+              </h3>
+              <p className="text-[10.5px] text-slate-300 mt-1 leading-relaxed">
+                Remove pre-loaded dummy records (such as guest passes, complaint tickets, chats, family listings) to clean your database for actual production deployment or real-time society testing.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 bg-black/30 p-2 rounded-xl border border-rose-500/10">
+              <button
+                type="button"
+                onClick={() => setPurgeMode("transactions")}
+                className={`py-2 px-3 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition ${
+                  purgeMode === "transactions" 
+                    ? "bg-rose-500 text-[#070b19] font-black" 
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Transactions Only
+              </button>
+              <button
+                type="button"
+                onClick={() => setPurgeMode("all")}
+                className={`py-2 px-3 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition ${
+                  purgeMode === "all" 
+                    ? "bg-red-600 text-white font-black" 
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Deep Wipe & Reset
+              </button>
+            </div>
+
+            <p className="text-[9.5px] text-slate-400 leading-normal">
+              {purgeMode === "transactions" 
+                ? "💡 Clears: Visitor pre-approvals, complaint tickets, notices, alerts, chats, and family records. Keeps existing user accounts intact so you do not get logged out."
+                : "⚠️ Clears: All transaction logs, staff list, AND all resident/guard profiles except the core system Super Admins. This allows fresh configuration."
+              }
+            </p>
+
+            <button
+              type="button"
+              onClick={handlePurgeDatabase}
+              disabled={isPurging}
+              className="w-full bg-rose-500 hover:bg-rose-600 disabled:bg-slate-800 text-[#070b19] font-black py-2.5 rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 shadow shadow-rose-500/10"
+            >
+              <Trash2 className={`w-3.5 h-3.5 ${isPurging ? 'animate-spin' : ''}`} />
+              {isPurging ? "Purging Records..." : "Execute Database Purge"}
+            </button>
+
+            {purgeResult && (
+              <div className="p-3 bg-black/40 border border-rose-500/20 rounded-xl text-[10px] font-bold text-center text-rose-300">
+                {purgeResult}
+              </div>
+            )}
           </div>
 
           {/* Live Deployment Manager */}

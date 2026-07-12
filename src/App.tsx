@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { safeFetchJson } from "./utils/safeFetch";
 import { 
-  User as UserType, Visitor, MaintenanceBill, Complaint, Notice, ChatMessage, Amenity, AmenityBooking, StaffMember, ParkingSpot, Poll, GuardAlert 
+  User as UserType, Visitor, MaintenanceBill, Complaint, Notice, ChatMessage, Amenity, AmenityBooking, StaffMember, ParkingSpot, Poll, GuardAlert, SocietyProgram 
 } from "./types";
 import ResidentPortal from "./components/ResidentPortal";
 import GuardPortal from "./components/GuardPortal";
@@ -10,6 +10,7 @@ import AdminPortal from "./components/AdminPortal";
 import SuperAdminPortal from "./components/SuperAdminPortal";
 import LoginPortal from "./components/LoginPortal";
 import OnboardingPage from "./components/OnboardingPage";
+import FooterIntegrations from "./components/FooterIntegrations";
 import { getTranslation } from "./utils/translations";
 import { PwaInstallModal } from "./components/PwaInstallModal";
 import { 
@@ -59,6 +60,7 @@ export default function App() {
   const [bills, setBills] = useState<MaintenanceBill[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [programs, setPrograms] = useState<SocietyProgram[]>([]);
   const [chats, setChats] = useState<ChatMessage[]>([]);
   const [amenities, setAmenities] = useState<Amenity[]>([]);
   const [bookings, setBookings] = useState<AmenityBooking[]>([]);
@@ -181,6 +183,82 @@ export default function App() {
     setIsInstallable(false);
   };
 
+  // Real-time WebSocket connection health status
+  const [wsStatus, setWsStatus] = useState<"connected" | "connecting" | "disconnected">("connecting");
+
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: any = null;
+    let pingInterval: any = null;
+    let attempts = 0;
+
+    const connectWS = () => {
+      if (typeof window === "undefined") return;
+      
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const host = window.location.host;
+      const wsUrl = `${protocol}//${host}/api/ws`;
+
+      setWsStatus("connecting");
+      
+      try {
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          setWsStatus("connected");
+          attempts = 0;
+          console.log("⚡ Real-time WebSocket health connection established.");
+          
+          // Send keepalive ping
+          pingInterval = setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "ping" }));
+            }
+          }, 15000);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "health") {
+              console.log("WebSocket connection state:", data.status);
+            }
+          } catch (e) {
+            // Non-json or fallback messages
+          }
+        };
+
+        ws.onclose = (event) => {
+          clearInterval(pingInterval);
+          setWsStatus("disconnected");
+          console.warn(`WebSocket connection closed (${event.code}). Retrying...`);
+          
+          // Exponential backoff reconnect
+          const delay = Math.min(1000 * Math.pow(2, attempts), 15000);
+          attempts++;
+          reconnectTimeout = setTimeout(connectWS, delay);
+        };
+
+        ws.onerror = (err) => {
+          if (ws) ws.close();
+        };
+      } catch (err) {
+        setWsStatus("disconnected");
+        reconnectTimeout = setTimeout(connectWS, 5000);
+      }
+    };
+
+    connectWS();
+
+    return () => {
+      if (ws) {
+        ws.close();
+      }
+      clearTimeout(reconnectTimeout);
+      clearInterval(pingInterval);
+    };
+  }, []);
+
   // General States
   const [isLoading, setIsLoading] = useState(true);
   const [systemNotification, setSystemNotification] = useState<string | null>(null);
@@ -218,6 +296,11 @@ export default function App() {
   const handleUpdateDndPreferences = (prefs: typeof dndPreferences) => {
     setDndPreferences(prefs);
     setIsDndActive(prefs.globalDnd);
+  };
+
+  const handleUpdateCurrentUser = (updatedUser: UserType) => {
+    setCurrentUser(updatedUser);
+    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
 
   const handleToggleGlobalDnd = () => {
@@ -478,7 +561,7 @@ export default function App() {
   const fetchAllData = async () => {
     try {
       const [
-        usersRes, visitorsRes, billsRes, complaintsRes, noticesRes, 
+        usersRes, visitorsRes, billsRes, complaintsRes, noticesRes, programsRes,
         chatsRes, amenitiesRes, staffRes, parkingRes, pollsRes, alertsRes, settingsRes
       ] = await Promise.all([
         safeFetchJson("/api/users", undefined, []),
@@ -486,6 +569,7 @@ export default function App() {
         safeFetchJson("/api/maintenance", undefined, []),
         safeFetchJson("/api/complaints", undefined, []),
         safeFetchJson("/api/notices", undefined, []),
+        safeFetchJson("/api/programs", undefined, []),
         safeFetchJson("/api/chats", undefined, []),
         safeFetchJson("/api/amenities", undefined, { amenities: [], bookings: [] }),
         safeFetchJson("/api/staff", undefined, []),
@@ -501,6 +585,7 @@ export default function App() {
       setBills(billsRes);
       setComplaints(complaintsRes);
       setNotices(noticesRes);
+      setPrograms(programsRes);
       setChats(chatsRes);
       setAmenities(amenitiesRes.amenities || []);
       setBookings(amenitiesRes.bookings || []);
@@ -968,9 +1053,66 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen bg-slate-900 text-white items-center justify-center flex-col gap-4 font-sans">
-        <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
-        <p className="text-sm font-semibold tracking-wide">INITIALIZING GATEKARU MULTI-TENANT SYSTEMS...</p>
+      <div className="flex h-screen w-screen bg-slate-950 text-white items-center justify-center flex-col gap-6 font-sans select-none overflow-hidden relative">
+        {/* Glow backdrop */}
+        <div className="absolute w-[250px] h-[250px] rounded-full bg-indigo-500/10 blur-[120px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse pointer-events-none"></div>
+        
+        <div className="relative flex flex-col items-center gap-6 z-10">
+          {/* Custom animated shield logo replicating the Android native splash icon */}
+          <div className="w-24 h-24 relative animate-pulse">
+            <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-[0_0_15px_rgba(245,158,11,0.25)]">
+              {/* Outer Golden Border */}
+              <path
+                fill="#F59E0B"
+                d="M50,4 C72,18 88,25 88,25 L88,58 C88,78 50,94 50,94 C50,94 12,78 12,58 L12,25 C12,25 28,18 50,4 Z"
+              />
+              {/* Inner Royal Slate/Indigo Body */}
+              <path
+                fill="#0F172A"
+                d="M50,8 C69,21 84,27 84,27 L84,56 C84,74 50,89 50,89 C50,89 16,74 16,56 L16,27 C16,27 31,21 50,8 Z"
+              />
+              {/* Golden Accents Half-Shade */}
+              <path
+                fill="#F59E0B"
+                fillOpacity="0.12"
+                d="M50,8 C50,8 50,89 50,89 C50,89 16,74 16,56 L16,27 C16,27 31,21 50,8 Z"
+              />
+              {/* Gate Grid Lines */}
+              <path
+                stroke="#F59E0B"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeOpacity="0.8"
+                d="M32,38 L68,38 M32,48 L68,48 M32,58 L68,58 M36,30 L36,66 M50,30 L50,66 M64,30 L64,66"
+              />
+              {/* Center Lock */}
+              <path fill="#F59E0B" d="M44,44 L56,44 L56,56 L44,56 Z" />
+              <path fill="#0F172A" d="M48,48 L52,48 L52,52 L48,52 Z" />
+              <path
+                stroke="#F59E0B"
+                strokeWidth="2"
+                strokeLinecap="round"
+                fill="none"
+                d="M46,44 C46,40 50,37 50,37 C50,37 54,40 54,44"
+              />
+            </svg>
+          </div>
+
+          <div className="text-center space-y-1.5">
+            <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300">
+              GATEKARU
+            </h1>
+            <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-[0.25em] animate-pulse">
+              Society ERP &amp; Gate Security Access
+            </p>
+          </div>
+        </div>
+
+        {/* Small subtle spinner at the very bottom */}
+        <div className="absolute bottom-10 flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+          <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-500" />
+          <span>Synchronizing Security Nodes...</span>
+        </div>
       </div>
     );
   }
@@ -1023,13 +1165,13 @@ export default function App() {
 
   const availablePortals: { id: string; name: string; icon: string }[] = [];
   if (currentUser) {
-    if (currentUser.role === "resident" || currentUser.id === "u1") {
+    if (currentUser.role === "resident" || currentUser.role === "both" || currentUser.id === "u1") {
       availablePortals.push({ id: "resident", name: getTranslation(globalLang, "app.resident_portal", "Resident Portal"), icon: "🏡" });
     }
     if (currentUser.role === "guard") {
       availablePortals.push({ id: "guard", name: getTranslation(globalLang, "app.guard_portal", "Guard Station"), icon: "🛡️" });
     }
-    if (currentUser.role === "admin" || currentUser.id === "u1") {
+    if (currentUser.role === "admin" || currentUser.role === "both" || currentUser.id === "u1") {
       availablePortals.push({ id: "admin", name: getTranslation(globalLang, "app.admin_portal", "Committee Admin"), icon: "📊" });
     }
     if (currentUser.role === "super_admin") {
@@ -1443,6 +1585,9 @@ export default function App() {
               globalLang={globalLang}
               dndPreferences={dndPreferences}
               onUpdateDndPreferences={handleUpdateDndPreferences}
+              onUpdateCurrentUser={handleUpdateCurrentUser}
+              programs={programs}
+              onRefreshPrograms={fetchAllData}
             />
           )}
 
@@ -1464,6 +1609,7 @@ export default function App() {
             <AdminPortal 
               currentUser={currentUser}
               users={users}
+              onApproveResident={fetchAllData}
               visitors={visitors}
               bills={bills}
               complaints={complaints}
@@ -1480,6 +1626,8 @@ export default function App() {
               onTriggerSOS={handleTriggerSOS}
               onResolveAlert={handleResolveAlert}
               globalLang={globalLang}
+              programs={programs}
+              onRefreshPrograms={fetchAllData}
             />
           )}
 
@@ -1500,11 +1648,41 @@ export default function App() {
         </div>
 
         {/* Dynamic Footer */}
-        <footer className="h-10 bg-white border-t border-slate-200 px-6 flex items-center justify-between text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider shrink-0">
-          <span>{getTranslation(globalLang, "app.uptime", "Enterprise Secure Partition • Green Uptime Node")}</span>
+        <footer className="min-h-12 py-2 sm:py-0 bg-white border-t border-slate-200 px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider shrink-0">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+            <span>{getTranslation(globalLang, "app.uptime", "Enterprise Secure Partition • Green Uptime Node")}</span>
+            <span className="hidden sm:inline text-slate-300">•</span>
+            <FooterIntegrations globalLang={globalLang} />
+          </div>
           <div className="flex gap-4 items-center">
-            <span className="flex items-center gap-1"><Wifi className="w-3.5 h-3.5 text-green-500" /> {getTranslation(globalLang, "app.db_sync", "Database Live Sync")}</span>
-            <span className="text-green-500">● {getTranslation(globalLang, "app.optimal", "Optimal")}</span>
+            <span className="flex items-center gap-1">
+              <Wifi className={`w-3.5 h-3.5 transition-colors duration-300 ${
+                wsStatus === "connected" ? "text-green-500" : wsStatus === "connecting" ? "text-amber-500 animate-pulse" : "text-red-500"
+              }`} />
+              {getTranslation(globalLang, "app.db_sync", "Database Live Sync")}
+            </span>
+            <span className="flex items-center gap-1.5 select-none">
+              <span className={`w-2.5 h-2.5 rounded-full inline-block transition-all duration-500 ${
+                wsStatus === "connected" 
+                  ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] animate-pulse" 
+                  : wsStatus === "connecting" 
+                    ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)] animate-pulse" 
+                    : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse"
+              }`} />
+              <span className={`font-black tracking-wider transition-colors duration-300 ${
+                wsStatus === "connected" 
+                  ? "text-green-500" 
+                  : wsStatus === "connecting" 
+                    ? "text-amber-500" 
+                    : "text-red-500"
+              }`}>
+                {wsStatus === "connected" 
+                  ? getTranslation(globalLang, "app.optimal", "Optimal") 
+                  : wsStatus === "connecting" 
+                    ? (globalLang === "hi" ? "कनेक्ट हो रहा है..." : globalLang === "mr" ? "कनेक्ट होत आहे..." : "Connecting...") 
+                    : (globalLang === "hi" ? "ऑफ़लाइन" : globalLang === "mr" ? "ऑफलाईन" : "Offline")}
+              </span>
+            </span>
           </div>
         </footer>
       </div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "gatekaru-pwa-v1";
+const CACHE_NAME = "gatekaru-pwa-v2";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
@@ -40,11 +40,33 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   
   const url = new URL(event.request.url);
-  // Do not intercept API requests or hot reloads
+  // Do not intercept API requests or hot reloads - delegate directly to network
   if (url.pathname.startsWith("/api") || url.pathname.includes("socket")) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
+  // Network-First strategy for HTML and root navigation requests to prevent stale layout caches
+  if (event.request.mode === "navigate" || url.pathname === "/" || url.pathname === "/index.html") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request) || caches.match("/index.html");
+        })
+    );
+    return;
+  }
+
+  // Cache-First with Network Fallback strategy for non-HTML static assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -68,10 +90,7 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => {
-          // If network fails, try to return index.html for navigation requests
-          if (event.request.mode === "navigate") {
-            return caches.match("/index.html");
-          }
+          // Fallback if needed
         });
     })
   );

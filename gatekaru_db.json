@@ -1,0 +1,144 @@
+{
+  "settings": {
+    "promotionalAdsEnabled": true,
+    "activeThemeOverride": "",
+    "simulatedDate": "",
+    "smsGatewayUrl": "https://www.fast2sms.com/dev/bulkV2",
+    "smsApiKey": "VQMRfN6dxzBRYdTc3JNvfjSaPhu92h1uL0l2CSRVxIFXdGcxIODWsKXaAw8f",
+    "smsSenderId": "gatekaru",
+    "smsRoute": "otp",
+    "smsActive": true,
+    "activeSmsProviderId": "fast2sms",
+    "smsProviders": [
+      {
+        "id": "fast2sms",
+        "name": "Fast2SMS (Quick / OTP)",
+        "gatewayUrl": "https://www.fast2sms.com/dev/bulkV2",
+        "apiKey": "VQMRfN6dxzBRYdTc3JNvfjSaPhu92h1uL0l2CSRVxIFXdGcxIODWsKXaAw8f",
+        "senderId": "gatekaru",
+        "route": "otp",
+        "description": "Standard OTP/DLT Indian SMS Gateway API with JSON payloads"
+      },
+      {
+        "id": "jobskaru",
+        "name": "JobsKaru SMS API Gateway",
+        "gatewayUrl": "https://sms.jobskaru.com/v3",
+        "apiKey": "",
+        "senderId": "JKARU",
+        "route": "q",
+        "description": "Premium enterprise SMS and WhatsApp OTP fallback relay"
+      },
+      {
+        "id": "twilio",
+        "name": "Twilio HTTP API",
+        "gatewayUrl": "https://api.twilio.com/2010-04-01/Accounts/{apiKey}/Messages.json",
+        "apiKey": "",
+        "senderId": "TWILIO",
+        "route": "bulk",
+        "description": "Global SMS and OTP verification delivery via Twilio API"
+      },
+      {
+        "id": "generic",
+        "name": "Custom SMS Provider (GET Request)",
+        "gatewayUrl": "https://api.smsprovider.com/send?apikey={apiKey}&to={phone}&msg={message}&sender={senderId}",
+        "apiKey": "",
+        "senderId": "CUSTOM",
+        "route": "custom",
+        "description": "Generic endpoint mapping with placeholder replacement"
+      }
+    ]
+  },
+  "societies": [
+    {
+      "id": "s1",
+      "name": "Greenwood Heights Society",
+      "address": "Sector 45, Gurugram, Haryana, India",
+      "totalFlats": 120,
+      "billingCycle": "Monthly"
+    }
+  ],
+  "users": [
+    {
+      "id": "u5",
+      "name": "Rajesh GateKaru",
+      "phone": "+91 99999 88888",
+      "email": "super@gatekaru.com",
+      "role": "super_admin",
+      "organization": "GateKaru Corporate"
+    },
+    {
+      "id": "u6",
+      "name": "GateKaru Developer",
+      "phone": "+91 99999 12345",
+      "email": "jaiganeshdp@gmail.com",
+      "role": "super_admin",
+      "organization": "GateKaru Corporate"
+    }
+  ],
+  "visitors": [],
+  "maintenance": [],
+  "complaints": [],
+  "notices": [],
+  "chats": [],
+  "amenities": [
+    {
+      "id": "a1",
+      "name": "Clubhouse / Community Hall",
+      "capacity": 100,
+      "costPerHour": 500,
+      "description": "Fully air-conditioned hall with seating and sound system."
+    },
+    {
+      "id": "a2",
+      "name": "Gymnasium",
+      "capacity": 15,
+      "costPerHour": 0,
+      "description": "State-of-the-art weights and cardio equipment."
+    },
+    {
+      "id": "a3",
+      "name": "Badminton Court",
+      "capacity": 4,
+      "costPerHour": 100,
+      "description": "Indoor wooden court. Slots require pre-booking."
+    }
+  ],
+  "amenityBookings": [],
+  "staff": [],
+  "parking": [],
+  "polls": [],
+  "guardAlerts": [],
+  "superAdminPlans": [
+    {
+      "id": "pln1",
+      "name": "GateKaru Essential",
+      "price": 1500,
+      "period": "Monthly",
+      "societies": 12,
+      "features": [
+        "Visitor Pre-Approval",
+        "Notice Board",
+        "SOS Alerts"
+      ]
+    },
+    {
+      "id": "pln2",
+      "name": "GateKaru Premium Enterprise",
+      "price": 3500,
+      "period": "Monthly",
+      "societies": 38,
+      "features": [
+        "All Essentials",
+        "Society Accounting & ERP",
+        "Maintenance Payments",
+        "AI Assistants Suite"
+      ]
+    }
+  ],
+  "approvals": [],
+  "vehicles": [],
+  "gateLogs": [],
+  "coupons": [],
+  "family": [],
+  "documents": []
+}

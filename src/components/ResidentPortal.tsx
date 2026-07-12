@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { safeFetchJson } from "../utils/safeFetch";
 import { 
-  User, Visitor, MaintenanceBill, Complaint, Notice, ChatMessage, Amenity, AmenityBooking, StaffMember, ParkingSpot, Poll 
+  User, Visitor, MaintenanceBill, Complaint, Notice, ChatMessage, Amenity, AmenityBooking, StaffMember, ParkingSpot, Poll, SocietyProgram 
 } from "../types";
 import { 
   Plus, ShieldAlert, Package, Car, Users, CreditCard, Send, Sparkles, MapPin, 
@@ -14,6 +14,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { getActiveFestival, FestivalTheme } from "../utils/festivalThemes";
 import { SmartGateService } from "../utils/smartGateService";
 import { getTranslation } from "../utils/translations";
+import ApplicationList from "./ApplicationList";
+import FestivalHub from "./FestivalHub";
 
 interface ResidentPortalProps {
   currentUser: User;
@@ -51,6 +53,9 @@ interface ResidentPortalProps {
     muteVoiceAnnounce: boolean;
     muteEmergencyAlert: boolean;
   }) => void;
+  onUpdateCurrentUser?: (updatedUser: User) => void;
+  programs?: SocietyProgram[];
+  onRefreshPrograms?: () => void;
 }
 
 export default function ResidentPortal({
@@ -78,7 +83,10 @@ export default function ResidentPortal({
   simulatedDate,
   globalLang = "en",
   dndPreferences,
-  onUpdateDndPreferences
+  onUpdateDndPreferences,
+  onUpdateCurrentUser,
+  programs = [],
+  onRefreshPrograms
 }: ResidentPortalProps) {
   const t = (key: string, def: string) => getTranslation(globalLang, key, def);
   const activeFestival = getActiveFestival(simulatedDate, activeThemeOverride);
@@ -127,7 +135,7 @@ export default function ResidentPortal({
 
   // Tabs for Resident Portal
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "visitors" | "bills" | "complaints" | "community" | "amenities" | "helpers" | "family" | "vehicles" | "documents" | "parcels" | "emergency" | "settings" | "services"
+    "dashboard" | "visitors" | "bills" | "complaints" | "community" | "amenities" | "helpers" | "family" | "vehicles" | "documents" | "parcels" | "emergency" | "settings" | "services" | "festival"
   >("dashboard");
 
   // Tab navigation history for step-by-step back
@@ -159,6 +167,16 @@ export default function ResidentPortal({
   };
   
   // States
+  const [programFilter, setProgramFilter] = useState<"all" | "ganpati" | "navratri" | "other">("all");
+  const [festivalSubTab, setFestivalSubTab] = useState<"schedule" | "duty" | "loudspeaker">("schedule");
+  const [voiceLang, setVoiceLang] = useState<string>(globalLang || "hi");
+
+  useEffect(() => {
+    if (globalLang) {
+      setVoiceLang(globalLang);
+    }
+  }, [globalLang]);
+
   const [localDndPrefs, setLocalDndPrefs] = useState(() => {
     try {
       const saved = localStorage.getItem("gatekaru_dnd_preferences");
@@ -365,6 +383,65 @@ export default function ResidentPortal({
 
   // Local gate approvals state
   const [localApprovals, setLocalApprovals] = useState<any[]>([]);
+
+  // Profile edit modal states
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [editName, setEditName] = useState(currentUser.name);
+  const [editPhone, setEditPhone] = useState(currentUser.phone);
+  const [editEmail, setEditEmail] = useState(currentUser.email);
+  const [editEmergencyPhone, setEditEmergencyPhone] = useState(currentUser.emergencyPhone || "");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
+  const [profileError, setProfileError] = useState("");
+
+  const openEditProfileModal = () => {
+    setEditName(currentUser.name);
+    setEditPhone(currentUser.phone);
+    setEditEmail(currentUser.email);
+    setEditEmergencyPhone(currentUser.emergencyPhone || "");
+    setProfileError("");
+    setProfileSaveSuccess(false);
+    setEditProfileOpen(true);
+  };
+
+  const handleUpdateProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileError("");
+    setProfileSaveSuccess(false);
+
+    try {
+      const response = await fetch("/api/users/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: currentUser.id,
+          name: editName,
+          phone: editPhone,
+          email: editEmail,
+          emergencyPhone: editEmergencyPhone
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData.error || "Failed to update profile.");
+      }
+
+      setProfileSaveSuccess(true);
+      if (onUpdateCurrentUser) {
+        onUpdateCurrentUser(resData.user);
+      }
+      setTimeout(() => {
+        setEditProfileOpen(false);
+        setProfileSaveSuccess(false);
+      }, 1200);
+    } catch (err: any) {
+      setProfileError(err.message || "An unexpected error occurred.");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   // Coupons & Perks State
   const [coupons, setCoupons] = useState<any[]>([]);
@@ -1624,12 +1701,19 @@ export default function ResidentPortal({
         {/* Profile Card Summary */}
         <div className="p-4 border-b border-slate-900 flex items-center justify-between bg-slate-950/60">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-sm border border-indigo-400 shadow">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-sm border border-indigo-400 shadow shrink-0">
               {currentUser.name.charAt(0)}
             </div>
-            <div>
-              <p className="text-xs font-black text-white leading-none">{currentUser.name}</p>
+            <div className="min-w-0">
+              <p className="text-xs font-black text-white leading-none truncate">{currentUser.name}</p>
               <p className="text-[10px] text-slate-400 font-bold mt-1.5 leading-none">{currentUser.flat || "A-402"}</p>
+              <button 
+                type="button"
+                onClick={openEditProfileModal}
+                className="text-[9px] text-indigo-400 hover:text-indigo-300 font-black flex items-center gap-1 mt-2.5 transition uppercase tracking-wider cursor-pointer hover:underline"
+              >
+                <Settings className="w-2.5 h-2.5" /> Edit Profile
+              </button>
             </div>
           </div>
           <button 
@@ -1743,6 +1827,13 @@ export default function ResidentPortal({
             <span>{t("resident.sidebar.emergency_contacts", "Emergency Contacts")}</span>
           </button>
           <button 
+            onClick={() => { setActiveTab("festival"); setMobileMenuOpen(false); }}
+            className={`w-full px-3 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2.5 text-left whitespace-nowrap shrink-0 ${activeTab === "festival" ? "bg-gradient-to-r from-amber-600 to-orange-700 text-white shadow-md shadow-amber-900/40" : "text-slate-400 hover:text-white hover:bg-slate-900"}`}
+          >
+            <Sparkles className="w-4 h-4 shrink-0 text-yellow-400" />
+            <span>Festival Central Hub (उत्सव हब)</span>
+          </button>
+          <button 
             onClick={() => { setActiveTab("settings"); setMobileMenuOpen(false); }}
             className={`w-full px-3 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2.5 text-left whitespace-nowrap shrink-0 ${activeTab === "settings" ? "bg-gradient-to-r from-slate-600 to-slate-700 text-white shadow-md shadow-slate-900/40" : "text-slate-400 hover:text-white hover:bg-slate-900"}`}
           >
@@ -1852,6 +1943,15 @@ export default function ResidentPortal({
                   <p className="text-xs md:text-sm text-indigo-100 font-bold leading-relaxed max-w-xl">
                     {activeFestival && festDetails ? festDetails.greeting : t("resident.dashboard.banner_desc", "Welcome to your GateKaru Resident Command Center. Raise SOS alerts, approve daily visitors, settle pending maintenance dues, and interact with society AI chatbot instantly.")}
                   </p>
+                  <div className="pt-1">
+                    <button 
+                      onClick={openEditProfileModal}
+                      className="inline-flex items-center gap-1.5 bg-white text-indigo-700 hover:bg-slate-50 font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl shadow-md transition-all duration-150 cursor-pointer border border-indigo-100 active:scale-95"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-indigo-600 animate-spin-slow" />
+                      <span>Edit Contact Profile</span>
+                    </button>
+                  </div>
                 </div>
                 
                 {/* Micro metrics card */}
@@ -2073,6 +2173,9 @@ export default function ResidentPortal({
               )}
             </div>
 
+            {/* JobsKaru Technology ecosystem app list */}
+            <ApplicationList />
+
             {/* Hyper-Local Partner Offers (Conditional Promotional Ads) */}
             {promotionalAdsEnabled && (
               <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4 relative overflow-hidden">
@@ -2139,6 +2242,562 @@ export default function ResidentPortal({
                 )}
               </div>
             )}
+
+            {/* ========================================================================= */}
+            {/* NEW WIDGET: SOCIETY FESTIVALS & PROGRAMS LIST WITH TIMINGS (त्यौहार और कार्यक्रम) */}
+            {/* ========================================================================= */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white text-xl shadow-md animate-pulse">
+                    🪔
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                      <span>Society Ganeshotsav & Navratri Central Hub</span>
+                      <span className="bg-rose-500 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">LIVE 🔴</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500 font-bold">
+                      गणेशोत्सव व नवरात्रि कार्यक्रम केंद्र • Active for <span className="text-indigo-600">{currentUser.society || "your society"}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sub Tab Switcher */}
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 self-start lg:self-center">
+                  <button
+                    type="button"
+                    onClick={() => setFestivalSubTab("schedule")}
+                    className={`px-3 py-1.5 text-[10px] font-black rounded-lg transition-all flex items-center gap-1 ${festivalSubTab === "schedule" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                  >
+                    📅 Program List / कार्यक्रम सूची
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFestivalSubTab("duty")}
+                    className={`px-3 py-1.5 text-[10px] font-black rounded-lg transition-all flex items-center gap-1 ${festivalSubTab === "duty" ? "bg-amber-500 text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                  >
+                    🏢 Aarti Floor Duty / आरती बारी सूची
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFestivalSubTab("loudspeaker")}
+                    className={`px-3 py-1.5 text-[10px] font-black rounded-lg transition-all flex items-center gap-1 ${festivalSubTab === "loudspeaker" ? "bg-pink-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                  >
+                    📢 Loudspeaker / डिजिटल लाउडस्पीकर
+                  </button>
+                </div>
+              </div>
+
+              {/* TAB 1: SCHEDULE & VISARJAN COUNTER */}
+              {festivalSubTab === "schedule" && (
+                <div className="space-y-4">
+                  {/* Visarjan Banner Block */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Ganpati Visarjan Card */}
+                    <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-white p-4 rounded-xl shadow-sm border border-amber-400 relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+                      <div className="absolute right-[-10px] bottom-[-10px] text-white/10 text-8xl font-black select-none pointer-events-none">
+                         गणेश
+                      </div>
+                      <div className="space-y-1 z-10">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🌺</span>
+                          <span className="bg-white/20 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">GANPATI VISARJAN (गणपति विसर्जन)</span>
+                        </div>
+                        <h4 className="font-extrabold text-base tracking-tight mt-1">Thursday, September 24, 2026</h4>
+                        <p className="text-[11px] text-amber-500 font-extrabold bg-white px-2 py-0.5 rounded-md inline-block mt-1 shadow-sm">
+                          ⏰ Time: 05:00 PM onwards • Central Fountain Lawn
+                        </p>
+                      </div>
+                      
+                      {/* Countdown calculator */}
+                      <div className="mt-3 pt-2 border-t border-white/20 flex items-center justify-between text-xs z-10">
+                        <span className="font-bold text-orange-100">⏳ Countdown Remaining:</span>
+                        <span className="font-black bg-white/30 px-2 py-1 rounded-md text-[10px] tracking-wide animate-pulse">
+                          {(() => {
+                            const todayStr = simulatedDate || "2026-07-12";
+                            const today = new Date(todayStr);
+                            const target = new Date("2026-09-24T17:00:00");
+                            const diffTime = target.getTime() - today.getTime();
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            if (diffDays < 0) return "Swaroop Visarjan Completed";
+                            if (diffDays === 0) return "🎯 VISARJAN TODAY / आज विसर्जन है!";
+                            return `⚡ ${diffDays} Days Left (दिन शेष)`;
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Navratri Durga Visarjan Card */}
+                    <div className="bg-gradient-to-r from-pink-600 to-rose-700 text-white p-4 rounded-xl shadow-sm border border-pink-500 relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+                      <div className="absolute right-[-10px] bottom-[-10px] text-white/10 text-8xl font-black select-none pointer-events-none">
+                         दुर्गा
+                      </div>
+                      <div className="space-y-1 z-10">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">⚔️</span>
+                          <span className="bg-white/20 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">DURGA VISARJAN (दुर्गा विसर्जन)</span>
+                        </div>
+                        <h4 className="font-extrabold text-base tracking-tight mt-1">Tuesday, October 20, 2026</h4>
+                        <p className="text-[11px] text-pink-500 font-extrabold bg-white px-2 py-0.5 rounded-md inline-block mt-1 shadow-sm">
+                          ⏰ Time: 06:00 PM onwards • Central Lawn Gate 1
+                        </p>
+                      </div>
+
+                      {/* Countdown calculator */}
+                      <div className="mt-3 pt-2 border-t border-white/20 flex items-center justify-between text-xs z-10">
+                        <span className="font-bold text-pink-100">⏳ Countdown Remaining:</span>
+                        <span className="font-black bg-white/30 px-2 py-1 rounded-md text-[10px] tracking-wide">
+                          {(() => {
+                            const todayStr = simulatedDate || "2026-07-12";
+                            const today = new Date(todayStr);
+                            const target = new Date("2026-10-20T18:00:00");
+                            const diffTime = target.getTime() - today.getTime();
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            if (diffDays < 0) return "Maha Visarjan Completed";
+                            if (diffDays === 0) return "🎯 DURGA VISARJAN TODAY!";
+                            return `⚡ ${diffDays} Days Left (दिन शेष)`;
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filter and Normal programs */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                    <span className="text-[11px] font-black text-slate-500 uppercase">📚 Filter Programs / कार्यक्रम श्रेणियां:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {["all", "ganpati", "navratri", "other"].map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => setProgramFilter(f as any)}
+                          className={`px-2 py-0.5 rounded text-[9px] font-black uppercase transition ${programFilter === f ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                        >
+                          {f === "all" ? "All / सभी" : f === "ganpati" ? "Ganpati" : f === "navratri" ? "Navratri" : "Other"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const filtered = programs.filter(p => {
+                      const matchesSociety = p.society.toLowerCase() === (currentUser.society || "").toLowerCase();
+                      if (!matchesSociety) return false;
+
+                      if (programFilter === "all") return true;
+                      if (programFilter === "ganpati") {
+                        return p.title.toLowerCase().includes("gan") || 
+                               p.title.toLowerCase().includes("गण") || 
+                               p.description.toLowerCase().includes("gan");
+                      }
+                      if (programFilter === "navratri") {
+                        return p.title.toLowerCase().includes("nav") || 
+                               p.title.toLowerCase().includes("नव") || 
+                               p.title.toLowerCase().includes("garba") || 
+                               p.title.toLowerCase().includes("गरबा") ||
+                               p.title.toLowerCase().includes("dandiya") || 
+                               p.title.toLowerCase().includes("डांडिया");
+                      }
+                      if (programFilter === "other") {
+                        return !p.title.toLowerCase().includes("gan") && 
+                               !p.title.toLowerCase().includes("गण") && 
+                               !p.title.toLowerCase().includes("nav") && 
+                               !p.title.toLowerCase().includes("नव") && 
+                               !p.title.toLowerCase().includes("garba") && 
+                               !p.title.toLowerCase().includes("गरबा") &&
+                               !p.title.toLowerCase().includes("dandiya") && 
+                               !p.title.toLowerCase().includes("डांडिया");
+                      }
+                      return true;
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                          <p className="text-xs font-bold text-slate-500">No programs scheduled matching this category in your society.</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">कोई कार्यक्रम नहीं मिला।</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {filtered.map((p) => {
+                          const todayStr = simulatedDate || "2026-07-12";
+                          let statusBadge = { label: "Upcoming", color: "bg-emerald-50 text-emerald-700 border border-emerald-200" };
+                          if (p.date === todayStr) {
+                            statusBadge = { label: "TODAY / आज", color: "bg-rose-500 text-white animate-pulse" };
+                          } else if (p.date < todayStr) {
+                            statusBadge = { label: "Completed / संपन्न", color: "bg-slate-100 text-slate-400" };
+                          }
+
+                          return (
+                            <div key={p.id} className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition-all flex flex-col justify-between space-y-3 bg-gradient-to-br from-white to-slate-50/50 relative overflow-hidden">
+                              <div className="space-y-1.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${statusBadge.color}`}>
+                                    {statusBadge.label}
+                                  </span>
+                                  <span className="text-[9px] text-slate-400 font-mono font-bold">
+                                    {p.date}
+                                  </span>
+                                </div>
+
+                                <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1">
+                                  ✨ {p.title}
+                                </h4>
+                                <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
+                                  {p.description}
+                                </p>
+                              </div>
+
+                              <div className="pt-2 border-t border-slate-100 space-y-1 text-[10px] text-slate-600 font-semibold">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-slate-400">📅</span>
+                                  <span>Date: <strong>{p.date}</strong></span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-slate-400">🕒</span>
+                                  <span>Time: <strong className="text-indigo-600">{p.startTime} {p.endTime ? `to ${p.endTime}` : ""}</strong></span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-slate-400">📍</span>
+                                  <span>Location: <strong>{p.location}</strong></span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-slate-400">📞</span>
+                                  <span>Contact: <strong className="text-slate-800">{p.coordinator}</strong></span>
+                                </div>
+                                {p.targetFloors && (
+                                  <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-100/70 rounded-lg py-1 px-2 mt-1">
+                                    <span className="text-[11px]">🪔</span>
+                                    <span className="text-[9px] text-slate-700">Duty/Participation: <strong className="text-rose-800 font-black">{p.targetFloors}</strong></span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="pt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    alert(`📞 Calling Coordinator ${p.coordinator} to enquire about ${p.title}.\n\n(Simulating call to phone...)`);
+                                  }}
+                                  className="w-full bg-white hover:bg-slate-50 text-slate-700 font-extrabold text-[10px] py-2 rounded-lg border border-slate-200 hover:border-slate-300 transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                  <PhoneCall className="w-3 h-3 text-emerald-600" />
+                                  <span>Call Coordinator / संपर्क करें</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* TAB 2: AARTI FLOOR DUTY TABLE */}
+              {festivalSubTab === "duty" && (
+                <div className="space-y-4">
+                  <div className="bg-amber-50 rounded-xl p-3.5 border border-amber-100 flex items-start gap-3">
+                    <span className="text-lg">📢</span>
+                    <div>
+                      <h4 className="text-xs font-black text-amber-800 uppercase">Aarti Participation Rule / आरती की बारी का नियम</h4>
+                      <p className="text-[10px] text-amber-700 mt-0.5 font-semibold">
+                        To maintain smooth crowd management at the pandal, floors have been designated specific dates. Daily Aarti happens at <strong>07:00 PM (Ganpati)</strong> & <strong>07:30 PM (Navratri)</strong>. Please gather as per your scheduled turn!
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Inner sub tab for Ganpati vs Navratri duty */}
+                  <div className="flex gap-2 border-b border-slate-100 pb-2">
+                    <button
+                      type="button"
+                      onClick={() => setProgramFilter("ganpati")}
+                      className={`px-3 py-1 text-[10px] font-black rounded-lg ${programFilter === "ganpati" || programFilter === "all" ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-slate-50 text-slate-500"}`}
+                    >
+                      🪔 Ganeshotsav Duty Schedule
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProgramFilter("navratri")}
+                      className={`px-3 py-1 text-[10px] font-black rounded-lg ${programFilter === "navratri" ? "bg-pink-100 text-pink-800 border border-pink-200" : "bg-slate-50 text-slate-500"}`}
+                    >
+                      💃 Navratri Garba & Aarti Duty
+                    </button>
+                  </div>
+
+                  {/* Duty List Table */}
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500">
+                          <th className="p-3">Date / दिनांक</th>
+                          <th className="p-3">Aarti Time</th>
+                          <th className="p-3">Assigned Wing & Floors</th>
+                          <th className="p-3">Coordinator</th>
+                          <th className="p-3 text-center">Status</th>
+                          <th className="p-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const activeSchedule = (programFilter === "navratri") ? [
+                            { date: "2026-10-11", time: "07:30 PM", wings: "Tower A (Floors 1 - 5)", coordinator: "Arvind Kejriwal", phone: "+91 98765 43210" },
+                            { date: "2026-10-12", time: "07:30 PM", wings: "Tower A (Floors 6 - 10)", coordinator: "Gaurav Gupta", phone: "+91 98765 43211" },
+                            { date: "2026-10-13", time: "07:30 PM", wings: "Tower B (Floors 1 - 5)", coordinator: "Satyendar Jain", phone: "+91 98765 43212" },
+                            { date: "2026-10-14", time: "07:30 PM", wings: "Tower B (Floors 6 - 10)", coordinator: "Manish Sisodia", phone: "+91 98765 43213" },
+                            { date: "2026-10-15", time: "07:30 PM", wings: "Tower C (Floors 1 - 5)", coordinator: "Raghav Chadha", phone: "+91 98765 43214" },
+                            { date: "2026-10-16", time: "07:30 PM", wings: "Tower C (Floors 6 - 10)", coordinator: "Sanjay Singh", phone: "+91 98765 43215" },
+                            { date: "2026-10-17", time: "07:30 PM", wings: "Penthouse Residents", coordinator: "Atishi Marlena", phone: "+91 98765 43216" },
+                            { date: "2026-10-18", time: "07:30 PM", wings: "ALL RESIDENTS (Maha Ashtami)", coordinator: "Saurabh Bhardwaj", phone: "+91 98765 43217" },
+                            { date: "2026-10-19", time: "07:30 PM", wings: "ALL RESIDENTS (Maha Navami)", coordinator: "Kailash Gahlot", phone: "+91 98765 43218" },
+                            { date: "2026-10-20", time: "05:30 PM", wings: "ALL TOWERS (Dussehra Visarjan)", coordinator: "Committee Board", phone: "+91 98765 43219" }
+                          ] : [
+                            { date: "2026-09-15", time: "07:00 PM", wings: "Tower A (Floors 1 - 3)", coordinator: "Sanjay Singhal", phone: "+91 98123 45601" },
+                            { date: "2026-09-16", time: "07:00 PM", wings: "Tower A (Floors 4 - 6)", coordinator: "Rajesh Khandelwal", phone: "+91 98123 45602" },
+                            { date: "2026-09-17", time: "07:00 PM", wings: "Tower A (Floors 7 - 10)", coordinator: "Vikas Joshi", phone: "+91 98123 45603" },
+                            { date: "2026-09-18", time: "07:00 PM", wings: "Tower B (Floors 1 - 3)", coordinator: "Amit Saxena", phone: "+91 98123 45604" },
+                            { date: "2026-09-19", time: "07:00 PM", wings: "Tower B (Floors 4 - 6)", coordinator: "Manoj Tiwari", phone: "+91 98123 45605" },
+                            { date: "2026-09-20", time: "07:00 PM", wings: "Tower B (Floors 7 - 10)", coordinator: "Preeti Deshmukh", phone: "+91 98123 45606" },
+                            { date: "2026-09-21", time: "07:00 PM", wings: "Tower C (Floors 1 - 3)", coordinator: "Nikhil Kamath", phone: "+91 98123 45607" },
+                            { date: "2026-09-22", time: "07:00 PM", wings: "Tower C (Floors 4 - 6)", coordinator: "Rahul Iyer", phone: "+91 98123 45608" },
+                            { date: "2026-09-23", time: "07:00 PM", wings: "Tower C (Floors 7 - 10)", coordinator: "Sudhir Kumar", phone: "+91 98123 45609" },
+                            { date: "2026-09-24", time: "05:00 PM", wings: "ALL RESIDENTS (Grand Visarjan)", coordinator: "Committee Core Team", phone: "+91 98123 45600" }
+                          ];
+
+                          const todayStr = simulatedDate || "2026-07-12";
+
+                          return activeSchedule.map((d, index) => {
+                            const isToday = d.date === todayStr;
+                            const isCompleted = d.date < todayStr;
+                            
+                            let statusText = "Upcoming";
+                            let statusStyle = "bg-slate-100 text-slate-600";
+                            if (isToday) {
+                              statusText = "TODAY / आज";
+                              statusStyle = "bg-rose-500 text-white font-black animate-pulse";
+                            } else if (isCompleted) {
+                              statusText = "Completed";
+                              statusStyle = "bg-slate-100 text-slate-400 border border-slate-200/50";
+                            }
+
+                            return (
+                              <tr 
+                                key={index} 
+                                className={`border-b border-slate-100 text-xs font-semibold hover:bg-slate-50/50 transition-colors ${isToday ? "bg-amber-50/60 border-l-4 border-l-amber-500" : ""}`}
+                              >
+                                <td className="p-3 font-mono font-bold text-slate-700">{d.date}</td>
+                                <td className="p-3 text-indigo-600 font-bold">{d.time}</td>
+                                <td className="p-3">
+                                  <div className="font-extrabold text-slate-800">{d.wings}</div>
+                                  {isToday && <span className="text-[9px] text-amber-600 font-extrabold">👉 Your Turn Tonight! / आज आपका ग्रुप है!</span>}
+                                </td>
+                                <td className="p-3">
+                                  <div className="text-slate-800">{d.coordinator}</div>
+                                  <div className="text-[10px] text-slate-400">{d.phone}</div>
+                                </td>
+                                <td className="p-3 text-center">
+                                  <span className={`text-[9px] uppercase px-2 py-0.5 rounded-full font-black ${statusStyle}`}>
+                                    {statusText}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      alert(`📞 Calling ${d.coordinator} (${d.phone}) to coordinate turn.`);
+                                    }}
+                                    className="p-1.5 rounded-lg border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-emerald-600 transition active:scale-95 inline-flex items-center justify-center cursor-pointer"
+                                    title="Call Coordinator"
+                                  >
+                                    <PhoneCall className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: SMART LOUDSPEAKER ANNOUNCEMENT SIMULATOR */}
+              {festivalSubTab === "loudspeaker" && (
+                <div className="space-y-5">
+                  <div className="bg-slate-900 rounded-xl p-5 text-white border border-slate-800 relative overflow-hidden flex flex-col md:flex-row gap-5 items-center justify-between shadow-lg">
+                    {/* Retro loudspeaker dynamic illustration */}
+                    <div className="flex items-center gap-4">
+                      <div className="relative flex items-center justify-center">
+                        <div className="w-16 h-16 bg-gradient-to-tr from-pink-500 to-indigo-600 rounded-full flex items-center justify-center text-3xl shadow-lg relative z-10 animate-pulse">
+                          📢
+                        </div>
+                        {/* Speaker soundwave ring simulation */}
+                        <div className="absolute w-20 h-20 bg-pink-500/20 rounded-full animate-ping z-0"></div>
+                        <div className="absolute w-24 h-24 bg-indigo-500/10 rounded-full animate-ping delay-300 z-0"></div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-rose-400 flex items-center gap-1.5">
+                          <span>Society Digital PA System</span>
+                          <span className="bg-red-500 text-white text-[8px] font-black px-1 rounded animate-pulse">MIC ON</span>
+                        </h4>
+                        <p className="text-[10px] text-slate-400 font-bold max-w-sm">
+                          Simulate the society's high-fidelity loudspeaker voice alert. Whoever selects a language on their phone will hear it natively!
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Language selector for simulation */}
+                    <div className="bg-slate-800 border border-slate-700 rounded-xl p-2 flex flex-col gap-1 w-full md:w-auto">
+                      <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Select Voice Language / आवाज़ बदलें:</label>
+                      <select
+                        value={voiceLang}
+                        onChange={(e) => setVoiceLang(e.target.value)}
+                        className="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs font-black text-amber-400 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                        id="simulation-loudspeaker-lang-selector"
+                      >
+                        <option value="en">🇬🇧 English (अंग्रेज़ी)</option>
+                        <option value="hi">🇮🇳 Hindi (हिंदी)</option>
+                        <option value="mr">🇮🇳 Marathi (मराठी)</option>
+                        <option value="gu">🇮🇳 Gujarati (ગુજરાતી)</option>
+                        <option value="bn">🇮🇳 Bengali (বাংলা)</option>
+                        <option value="ta">🇮🇳 Tamil (தமிழ்)</option>
+                        <option value="te">🇮🇳 Telugu (తెలుగు)</option>
+                        <option value="kn">🇮🇳 Kannada (ಕನ್ನಡ)</option>
+                        <option value="pa">🇮🇳 Punjabi (ਪੰਜਾਬੀ)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Announcement Display and play controls */}
+                  <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 space-y-4">
+                    <div className="space-y-1">
+                      <span className="bg-slate-200 text-slate-700 text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider">Announcement Text (घोषणा वाक्य):</span>
+                      <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm relative min-h-[70px] flex items-center">
+                        <p className="text-slate-800 font-black text-sm leading-relaxed">
+                          {(() => {
+                            const map: Record<string, string> = {
+                              en: "Attention please! The Aarti time has started. Please gather near the pandal.",
+                              hi: "कृपया ध्यान दें! आरती का समय हो गया है। कृपया नीचे पंडाल के पास सभी लोग इकट्ठा हो जाएं।",
+                              mr: "कृपया लक्ष द्या! आरतीची वेळ झाली आहे. कृपया खाली पंडालजवळ सर्व लोकांनी एकत्र यावे.",
+                              gu: "કૃપા કરીને ધ્યાન આપો! આરતીનો સમય થઈ ગયો છે. કૃપા કરીને નીચે પંડાલ પાસે બધા લોકો ભેગા થઈ જાઓ.",
+                              bn: "অনুগ্রহ করে মনোযোগ দিন! আরতির সময় শুরু হয়েছে। অনুগ্রহ করে নিচে প্যান্ডেলের কাছে সবাই জড়ো হন।",
+                              ta: "தயவுசெய்து கவனிக்கவும்! ஆரத்தி நேரம் தொடங்கிவிட்டது. தயவுசெய்து கீழே உள்ள பந்தல் அருகே அனைவரும் ஒன்று கூடுங்கள்.",
+                              te: "దయచేసి గమనించండి! హారతి సమయం ప్రారంభమైంది. దయచేసి కింద ఉన్న పండల్ వద్ద అందరూ కూడా చేరండి.",
+                              kn: "ದಯವಿಟ್ಟು ಗಮನಿಸಿ! ಆರತಿಯ ಸಮಯ ಪ್ರಾರಂಭವಾಗಿದೆ. ದಯವಿಟ್ಟು ಕೆಳಗಿನ ಪಂಡಾಲ್ ಹತ್ತಿರ ಎಲ್ಲರೂ ಒಟ್ಟಾಗಿ ಸೇರಿ.",
+                              pa: "ਕਿਰਪਾ ਕਰਕੇ ਧਿਆਨ ਦਿਓ! ਆਰਤੀ ਦਾ ਸਮਾਂ ਹੋ ਗਿਆ ਹੈ। ਕਿਰਪา ਕਰਕੇ ਹੇਠਾਂ ਪੰਡਾਲ ਦੇ ਕੋਲ ਸਾਰੇ ਇਕੱਠੇ ਹੋ ਜਾਓ।"
+                            };
+                            return map[voiceLang] || map["en"];
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Action buttons with custom audio synthesis */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Play realism chime sound
+                          try {
+                            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                            const osc1 = audioCtx.createOscillator();
+                            const gain1 = audioCtx.createGain();
+                            osc1.type = "sine";
+                            osc1.frequency.setValueAtTime(880, audioCtx.currentTime); // High pitch A5
+                            gain1.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                            gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+                            osc1.connect(gain1);
+                            gain1.connect(audioCtx.destination);
+                            osc1.start();
+                            osc1.stop(audioCtx.currentTime + 1.5);
+                          } catch (e){}
+                          alert("🛎️ Simulating brass temple bell ringing sound!");
+                        }}
+                        className="bg-white hover:bg-amber-50 text-slate-800 font-extrabold text-[11px] py-3 rounded-xl border border-slate-200 transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        🔔 Play Temple Bell / घंटी बजाएं
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const map: Record<string, string> = {
+                            en: "Attention please! The Aarti time has started. Please gather near the pandal.",
+                            hi: "कृपया ध्यान दें! आरती का समय हो गया है। कृपया नीचे पंडाल के पास सभी लोग इकट्ठा हो जाएं।",
+                            mr: "कृपया लक्ष द्या! आरतीची वेळ झाली आहे. कृपया खाली पंडालजवळ सर्व लोकांनी एकत्र यावे.",
+                            gu: "કૃપા કરીને ધ્યાન આપો! આરતીનો સમય થઈ ગયો છે. કૃપા કરીને નીચે પંડાલ પાસે બધા લોકો ભેગા થઈ જાઓ.",
+                            bn: "অনুগ্রহ করে মনোযোগ দিন! আরতির সময় শুরু হয়েছে। অনুগ্রহ করে নিচে প্যান্ডেলের কাছে সবাই জড়ো হন।",
+                            ta: "தயவுசெய்து கவனிக்கவும்! ஆரத்தி நேரம் தொடங்கிவிட்டது. தயவுசெய்து கீழே உள்ள பந்தல் அருகே அனைவரும் ஒன்று கூடுங்கள்.",
+                            te: "దయచేసి గమనించండి! హారతి సమయం ప్రారంభమైంది. దయచేసి కింద ఉన్న పండల్ వద్ద అందరూ కూడా చేరండి.",
+                            kn: "ದಯವಿಟ್ಟು ಗಮನಿಸಿ! ಆರತಿಯ ಸಮಯ ಪ್ರಾರಂಭವಾಗಿದೆ. ದಯವಿಟ್ಟು ಕೆಳಗಿನ ಪಂಡಾಲ್ ಹತ್ತಿರ ಎಲ್ಲರೂ ಒಟ್ಟಾಗಿ ಸೇರಿ.",
+                            pa: "ਕਿਰਪਾ ਕਰਕੇ ਧਿਆਨ ਦਿਓ! ਆਰਤੀ ਦਾ ਸਮਾਂ ਹੋ ਗਿਆ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਹੇਠਾਂ ਪੰਡਾਲ ਦੇ ਕੋਲ ਸਾਰੇ ਇਕੱਠੇ ਹੋ ਜਾਓ।"
+                          };
+                          const text = map[voiceLang] || map["en"];
+
+                          // Play complex temple bells and then speak!
+                          try {
+                            const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                            const now = audioCtx.currentTime;
+                            const chimes = [650, 850, 1100, 1300];
+                            chimes.forEach((f, idx) => {
+                              const osc = audioCtx.createOscillator();
+                              const gain = audioCtx.createGain();
+                              osc.type = "sine";
+                              osc.frequency.setValueAtTime(f, now + idx * 0.2);
+                              gain.gain.setValueAtTime(0.0, now + idx * 0.2);
+                              gain.gain.linearRampToValueAtTime(0.1, now + idx * 0.2 + 0.02);
+                              gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.2 + 1.0);
+                              osc.connect(gain);
+                              gain.connect(audioCtx.destination);
+                              osc.start(now + idx * 0.2);
+                              osc.stop(now + idx * 0.2 + 1.2);
+                            });
+                          } catch (e){}
+
+                          setTimeout(() => {
+                            if ("speechSynthesis" in window) {
+                              window.speechSynthesis.cancel();
+                              const utterance = new SpeechSynthesisUtterance(text);
+                              utterance.rate = 0.88;
+                              utterance.pitch = 1.02;
+                              const voices = window.speechSynthesis.getVoices();
+                              const targetVoice = voices.find(v => 
+                                v.lang.toLowerCase().startsWith(voiceLang.toLowerCase()) ||
+                                (voiceLang === "en" && v.lang.toLowerCase().includes("in"))
+                              );
+                              if (targetVoice) utterance.voice = targetVoice;
+                              window.speechSynthesis.speak(utterance);
+                            } else {
+                              alert("Speech Synthesis is not supported in this browser. Showing notification instead:\n\n" + text);
+                            }
+                          }, 1000);
+                        }}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[11px] py-3 rounded-xl shadow transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        🔊 Hear Announcement / घोषणा सुनें
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          alert("📲 Alerts sent! Triggered smart resident dashboard popups on all registered devices belonging to " + (currentUser.society || "your society") + ".");
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[11px] py-3 rounded-xl shadow transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        📲 Simulate Broadcaster / सभी को भेजें
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Quick Actions Grid for Mobile & Desktop - Colorful Bento Grid */}
             <div className="space-y-3">
               <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
@@ -5641,11 +6300,55 @@ export default function ResidentPortal({
           </div>
         )}
 
+        {activeTab === "festival" && (
+          <FestivalHub currentUser={currentUser} onRefreshPrograms={onRefreshPrograms} />
+        )}
+
         {/* ==================================== */}
         {/* TAB 13: RESIDENT PREFERENCES SETTINGS */}
         {/* ==================================== */}
         {activeTab === "settings" && (
           <div className="space-y-6">
+            {/* Resident Profile Contact Card */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wide flex items-center gap-2">
+                    <UserIcon className="w-5 h-5 text-indigo-500" />
+                    <span>My GateKaru Profile Details</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Your official resident directory credentials used for billing, gate operations, and security notifications.</p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={openEditProfileModal}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-black px-4 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 shadow-sm uppercase tracking-wider"
+                >
+                  <Settings className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Edit Profile</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Full Name</span>
+                  <p className="text-xs font-extrabold text-slate-800 mt-1">{currentUser.name}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Mobile Number</span>
+                  <p className="text-xs font-extrabold text-slate-800 mt-1">{currentUser.phone}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Email Address</span>
+                  <p className="text-xs font-extrabold text-slate-800 mt-1 truncate">{currentUser.email || "Not specified"}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Emergency Contact</span>
+                  <p className="text-xs font-extrabold text-slate-800 mt-1 text-red-600">{currentUser.emergencyPhone || "Not specified"}</p>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
               <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                 <div>
@@ -5987,6 +6690,143 @@ export default function ResidentPortal({
                   Close Inspector
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Profile Edit Modal */}
+        {editProfileOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setEditProfileOpen(false)}
+            className="fixed inset-0 bg-[#040612]/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white border border-slate-200 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden text-left"
+            >
+              {/* Modal Header */}
+              <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div>
+                  <span className="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">
+                    GateKaru Directory Sync
+                  </span>
+                  <h3 className="text-sm font-black text-slate-800 mt-1 uppercase tracking-wide">
+                    Edit Resident Contact Profile
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setEditProfileOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 font-bold transition text-sm p-1.5 hover:bg-slate-100 rounded-lg"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={handleUpdateProfileSubmit}>
+                <div className="p-6 space-y-4">
+                  {profileError && (
+                    <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-bold flex items-center gap-2">
+                      <span className="shrink-0">⚠️</span>
+                      <span>{profileError}</span>
+                    </div>
+                  )}
+
+                  {profileSaveSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-xs font-bold flex items-center gap-2 animate-bounce">
+                      <span className="shrink-0">✅</span>
+                      <span>Profile updated and synced successfully!</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                      Full Name
+                    </label>
+                    <input 
+                      type="text"
+                      required
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="E.g., Aarav Sharma"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder-slate-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                      Mobile Number
+                    </label>
+                    <input 
+                      type="tel"
+                      required
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      placeholder="E.g., +91 98765 43210"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder-slate-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                      Email Address
+                    </label>
+                    <input 
+                      type="email"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      placeholder="E.g., aarav@example.com"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder-slate-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider flex justify-between">
+                      <span>Emergency Contact Phone</span>
+                      <span className="text-[9px] text-indigo-600 font-bold lowercase tracking-normal">Shown to security guards</span>
+                    </label>
+                    <input 
+                      type="tel"
+                      value={editEmergencyPhone}
+                      onChange={(e) => setEditEmergencyPhone(e.target.value)}
+                      placeholder="E.g., +91 91234 56789"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder-slate-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditProfileOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-100 transition border border-slate-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={profileSaving}
+                    className="px-5 py-2 rounded-xl text-xs font-black text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition active:scale-95 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-300 shadow-md flex items-center gap-1.5"
+                  >
+                    {profileSaving ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>Save Profile Changes</span>
+                    )}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

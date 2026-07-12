@@ -3,6 +3,7 @@ import { User } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { Phone, Lock, ChevronRight, RefreshCw, KeyRound, ArrowLeft, Shield, Building, Compass, Sparkles, Palette, Globe } from "lucide-react";
 import { INDIAN_LANGUAGES } from "../utils/alertTemplates";
+import FooterIntegrations from "./FooterIntegrations";
 
 const BANNER_THEMES = [
   { id: "slate", name: "Deep Slate", bgClass: "bg-slate-950", accentClass: "text-slate-400" },
@@ -245,8 +246,24 @@ export default function LoginPortal({
   const [selectedWorkspace, setSelectedWorkspace] = useState<"resident" | "guard" | "admin" | "super_admin">("resident");
 
   // Registration states
-  const [regRole, setRegRole] = useState<"resident" | "guard" | "admin">("resident");
+  const [regRole, setRegRole] = useState<"resident" | "guard" | "admin" | "both">("resident");
+  const [societies, setSocieties] = useState<{ id: string; name: string }[]>([]);
+  const [regSociety, setRegSociety] = useState("Greenwood Heights Society");
   const [regName, setRegName] = useState("");
+
+  useEffect(() => {
+    fetch("/api/societies")
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setSocieties(data);
+          if (data.length > 0) {
+            setRegSociety(data[0].name);
+          }
+        }
+      })
+      .catch(err => console.error("Error fetching societies:", err));
+  }, []);
   const [regPhone, setRegPhone] = useState("");
   const [regEmail, setRegEmail] = useState("");
   
@@ -355,9 +372,9 @@ export default function LoginPortal({
       }
 
       // Detect workspaces for matched user
-      if (finalUser.id === "u1" || finalUser.email === "aarav@example.com") {
-        // Aarav Sharma has Resident and Admin Committee role choice
-        setSelectedWorkspace("admin"); // Default selection to Admin Committee
+      if (finalUser.id === "u1" || finalUser.email === "aarav@example.com" || finalUser.role === "both") {
+        // Aarav Sharma or newly registered dual-role user has Resident and Admin Committee role choice
+        setSelectedWorkspace("resident"); // Default selection to Resident Portal
         setStep("workspace");
       } else {
         // Direct automatic zero-click routing:
@@ -401,14 +418,15 @@ export default function LoginPortal({
           phone: regPhone.trim(),
           email: regEmail.trim(),
           role: regRole,
-          flat: regRole === "resident" ? regFlat.trim() : undefined,
-          type: regRole === "resident" ? regType : undefined,
-          vehicleNo: regRole === "resident" ? regVehicleNo.trim() : undefined,
+          flat: (regRole === "resident" || regRole === "both") ? regFlat.trim() : undefined,
+          type: (regRole === "resident" || regRole === "both") ? regType : undefined,
+          vehicleNo: (regRole === "resident" || regRole === "both") ? regVehicleNo.trim() : undefined,
           shift: regRole === "guard" ? regShift : undefined,
           gate: regRole === "guard" ? regGate : undefined,
           idCard: regRole === "guard" ? regIdCard.trim() : undefined,
-          designation: regRole === "admin" ? regDesignation.trim() : undefined,
-          committee: regRole === "admin" ? regCommittee.trim() : undefined
+          designation: (regRole === "admin" || regRole === "both") ? regDesignation.trim() : undefined,
+          committee: (regRole === "admin" || regRole === "both") ? regCommittee.trim() : undefined,
+          society: regSociety
         })
       });
 
@@ -921,6 +939,32 @@ export default function LoginPortal({
                   {/* Common Fields */}
                   <div className="grid grid-cols-1 gap-3">
                     <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider flex justify-between">
+                        <span>Select Building / Society (सोसायटी चुनें)</span>
+                        <span className="text-[8px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full font-bold uppercase">Subscribed / Onboarded</span>
+                      </label>
+                      <select
+                        value={regSociety}
+                        onChange={(e) => setRegSociety(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition cursor-pointer"
+                      >
+                        {societies.map((soc) => (
+                          <option key={soc.id} value={soc.name}>
+                            🏢 {soc.name}
+                          </option>
+                        ))}
+                        {societies.length === 0 && (
+                          <>
+                            <option value="Greenwood Heights Society">🏢 Greenwood Heights Society</option>
+                            <option value="Yashika Residency">🏢 Yashika Residency</option>
+                            <option value="Sahil Tower">🏢 Sahil Tower</option>
+                            <option value="Silver Maple Heights">🏢 Silver Maple Heights</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Full Name (पूरा नाम)</label>
                       <input
                         type="text"
@@ -1227,9 +1271,12 @@ export default function LoginPortal({
         </div>
 
         {/* Footer info links */}
-        <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-400 font-bold flex justify-between uppercase tracking-wider">
-          <span>Enterprise Secure Partition</span>
-          <span>GateKaru ERP v2.4.0</span>
+        <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-3">
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex gap-4">
+            <span>Enterprise Secure Partition</span>
+            <span>GateKaru ERP v2.4.0</span>
+          </div>
+          <FooterIntegrations globalLang={globalLang || "en"} />
         </div>
 
       </div>

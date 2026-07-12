@@ -3,7 +3,7 @@ export interface User {
   name: string;
   phone: string;
   email: string;
-  role: "resident" | "guard" | "admin" | "super_admin";
+  role: "resident" | "guard" | "admin" | "super_admin" | "both";
   flat?: string;
   type?: string; // Owner or Tenant
   vehicleNo?: string;
@@ -13,6 +13,9 @@ export interface User {
   designation?: string; // For admins
   committee?: string; // For admins
   organization?: string; // For super admin
+  emergencyPhone?: string; // For residents' emergency contact
+  isApproved?: boolean; // For new residents registration approval
+  society?: string; // The building/society selected during onboarding/registration
 }
 
 export interface Visitor {
@@ -150,3 +153,17 @@ export interface GuardAlert {
   timestamp: string;
   status: "Active" | "Resolved";
 }
+
+export interface SocietyProgram {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  coordinator: string;
+  society: string;
+  targetFloors?: string;
+}
+

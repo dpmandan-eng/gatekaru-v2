@@ -188,6 +188,8 @@ async function createTables() {
       designation VARCHAR(255),
       committee VARCHAR(255),
       organization VARCHAR(255),
+      isApproved BOOLEAN DEFAULT TRUE,
+      society VARCHAR(255),
       registeredAt VARCHAR(255)
     )`,
     `CREATE TABLE IF NOT EXISTS visitors (
@@ -236,6 +238,17 @@ async function createTables() {
       content TEXT,
       date VARCHAR(255),
       author VARCHAR(255)
+    )`,
+    `CREATE TABLE IF NOT EXISTS programs (
+      id VARCHAR(255) PRIMARY KEY,
+      title VARCHAR(255),
+      description TEXT,
+      date VARCHAR(255),
+      startTime VARCHAR(255),
+      endTime VARCHAR(255),
+      location VARCHAR(255),
+      coordinator VARCHAR(255),
+      society VARCHAR(255)
     )`,
     `CREATE TABLE IF NOT EXISTS chats (
       id VARCHAR(255) PRIMARY KEY,
@@ -499,6 +512,7 @@ async function loadFromMysql(defaultDb: any): Promise<any> {
   db.maintenance = await loadTable("maintenance", defaultDb.maintenance);
   db.complaints = await loadTable("complaints", defaultDb.complaints, ["updates"]);
   db.notices = await loadTable("notices", defaultDb.notices);
+  db.programs = await loadTable("programs", defaultDb.programs || []);
   db.chats = await loadTable("chats", defaultDb.chats);
   db.amenities = await loadTable("amenities", defaultDb.amenities);
   db.amenityBookings = await loadTable("amenityBookings", defaultDb.amenityBookings);
@@ -570,6 +584,7 @@ export async function syncDbToMysql(db: any) {
     await syncTable("maintenance", db.maintenance);
     await syncTable("complaints", db.complaints, ["updates"]);
     await syncTable("notices", db.notices);
+    await syncTable("programs", db.programs || []);
     await syncTable("chats", db.chats);
     await syncTable("amenities", db.amenities);
     await syncTable("amenityBookings", db.amenityBookings);
