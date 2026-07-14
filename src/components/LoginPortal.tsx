@@ -243,7 +243,7 @@ export default function LoginPortal({
   // Selected user after matching phone number
   const [matchedUser, setMatchedUser] = useState<User | null>(null);
   // Selected workspace for dual role (Aarav Sharma) or single role
-  const [selectedWorkspace, setSelectedWorkspace] = useState<"resident" | "guard" | "admin" | "super_admin">("resident");
+  const [selectedWorkspace, setSelectedWorkspace] = useState<"resident" | "guard" | "admin" | "super_admin" | "unified">("resident");
 
   // Registration states
   const [regRole, setRegRole] = useState<"resident" | "guard" | "admin" | "both">("resident");
@@ -374,11 +374,11 @@ export default function LoginPortal({
       // Detect workspaces for matched user
       if (finalUser.id === "u1" || finalUser.email === "aarav@example.com" || finalUser.role === "both") {
         // Aarav Sharma or newly registered dual-role user has Resident and Admin Committee role choice
-        setSelectedWorkspace("resident"); // Default selection to Resident Portal
+        setSelectedWorkspace(finalUser.role === "both" ? "unified" : "resident"); // Default selection to Unified Portal if role is "both"
         setStep("workspace");
       } else {
         // Direct automatic zero-click routing:
-        let targetPortal: "resident" | "guard" | "admin" | "super_admin" = "resident";
+        let targetPortal: "resident" | "guard" | "admin" | "super_admin" | "unified" = "resident";
         if (finalUser.role === "resident") targetPortal = "resident";
         else if (finalUser.role === "guard") targetPortal = "guard";
         else if (finalUser.role === "admin") targetPortal = "admin";
@@ -890,14 +890,14 @@ export default function LoginPortal({
                   {/* Select Role Tabs */}
                   <div className="space-y-1">
                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">I am registering as (मैं हूँ):</label>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                       <button
                         type="button"
                         onClick={() => {
                           setRegRole("resident");
                           setError(null);
                         }}
-                        className={`py-2 text-[10px] font-bold rounded-lg border transition cursor-pointer ${
+                        className={`py-2 text-[10px] font-bold rounded-lg border transition cursor-pointer text-center ${
                           regRole === "resident" 
                             ? "bg-indigo-600 text-white border-indigo-600 shadow-sm font-extrabold" 
                             : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
@@ -911,7 +911,7 @@ export default function LoginPortal({
                           setRegRole("guard");
                           setError(null);
                         }}
-                        className={`py-2 text-[10px] font-bold rounded-lg border transition cursor-pointer ${
+                        className={`py-2 text-[10px] font-bold rounded-lg border transition cursor-pointer text-center ${
                           regRole === "guard" 
                             ? "bg-indigo-600 text-white border-indigo-600 shadow-sm font-extrabold" 
                             : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
@@ -925,13 +925,27 @@ export default function LoginPortal({
                           setRegRole("admin");
                           setError(null);
                         }}
-                        className={`py-2 text-[10px] font-bold rounded-lg border transition cursor-pointer ${
+                        className={`py-2 text-[10px] font-bold rounded-lg border transition cursor-pointer text-center ${
                           regRole === "admin" 
                             ? "bg-indigo-600 text-white border-indigo-600 shadow-sm font-extrabold" 
                             : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                         }`}
                       >
                         📊 Committee
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRegRole("both");
+                          setError(null);
+                        }}
+                        className={`py-2 text-[10px] font-bold rounded-lg border transition cursor-pointer text-center ${
+                          regRole === "both" 
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm font-extrabold" 
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        💎 Both (Res + Comm)
                       </button>
                     </div>
                   </div>
@@ -1001,7 +1015,7 @@ export default function LoginPortal({
                   </div>
 
                   {/* RESIDENT SPECIFIC FIELDS */}
-                  {regRole === "resident" && (
+                  {(regRole === "resident" || regRole === "both") && (
                     <div className="grid grid-cols-2 gap-3 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 mt-1">
                       <div className="space-y-1 col-span-2">
                         <label className="text-[9px] font-black uppercase text-indigo-700 tracking-wider">Flat Number (फ्लैट नंबर)</label>
@@ -1079,7 +1093,7 @@ export default function LoginPortal({
                   )}
 
                   {/* COMMITTEE / ADMIN SPECIFIC FIELDS */}
-                  {regRole === "admin" && (
+                  {(regRole === "admin" || regRole === "both") && (
                     <div className="grid grid-cols-1 gap-3 p-3 bg-rose-50/40 rounded-xl border border-rose-100/50 mt-1">
                       <div className="space-y-1">
                         <label className="text-[9px] font-black uppercase text-rose-800 tracking-wider">Designation / Role (पद)</label>
@@ -1165,14 +1179,14 @@ export default function LoginPortal({
                     Welcome {matchedUser.name}
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    {matchedUser.id === "u1"
-                      ? "Choose the workspace compartment you want to proceed into today."
+                    {(matchedUser.id === "u1" || matchedUser.role === "both")
+                      ? "Choose the workspace compartment you want to proceed into today. You have multiple active roles."
                       : getLoginTranslation("login.workspace_desc", "Access whitelisted. Proceed directly to your assigned ERP dashboard.")}
                   </p>
                 </div>
 
-                {/* Aarav's Workspace selection layout (Custom specified in requirements) */}
-                {matchedUser.id === "u1" ? (
+                {/* Dual role Workspace selection layout */}
+                {(matchedUser.id === "u1" || matchedUser.role === "both") ? (
                   <div className="space-y-3">
                     <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Choose Workspace</div>
                     
@@ -1207,6 +1221,23 @@ export default function LoginPortal({
                       </div>
                       <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedWorkspace === "admin" ? "border-indigo-600" : "border-slate-300"}`}>
                         {selectedWorkspace === "admin" && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600"></div>}
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWorkspace("unified")}
+                      className={`w-full text-left p-4 rounded-xl border transition flex items-center gap-4 ${selectedWorkspace === "unified" ? "border-indigo-600 bg-indigo-50/50 shadow-sm" : "border-slate-100 hover:bg-slate-50"}`}
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-lg shadow-sm border border-emerald-100">
+                        💎
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-xs font-black text-slate-800 uppercase">Unified Suite / दोनों एकीकृत</h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">View all your resident and committee responsibilities in a single, consolidated overview.</p>
+                      </div>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedWorkspace === "unified" ? "border-indigo-600" : "border-slate-300"}`}>
+                        {selectedWorkspace === "unified" && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600"></div>}
                       </div>
                     </button>
                   </div>

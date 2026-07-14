@@ -25,7 +25,7 @@ interface User {
   name: string;
   phone: string;
   email: string;
-  role: "resident" | "guard" | "admin" | "super_admin";
+  role: "resident" | "guard" | "admin" | "super_admin" | "both";
   flat?: string;
   type?: string;
   society?: string;

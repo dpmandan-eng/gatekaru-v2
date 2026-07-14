@@ -7,6 +7,7 @@ import {
 import ResidentPortal from "./components/ResidentPortal";
 import GuardPortal from "./components/GuardPortal";
 import AdminPortal from "./components/AdminPortal";
+import UnifiedDashboard from "./components/UnifiedDashboard";
 import SuperAdminPortal from "./components/SuperAdminPortal";
 import LoginPortal from "./components/LoginPortal";
 import OnboardingPage from "./components/OnboardingPage";
@@ -79,7 +80,7 @@ export default function App() {
   });
 
   // Active UI portal: Auto-driven by current user role, persisted in localStorage
-  const [activePortal, setActivePortal] = useState<"resident" | "guard" | "admin" | "super_admin">(() => {
+  const [activePortal, setActivePortal] = useState<"resident" | "guard" | "admin" | "super_admin" | "unified">(() => {
     try {
       const saved = localStorage.getItem("gatekaru_portal");
       return (saved as any) || "resident";
@@ -861,14 +862,14 @@ export default function App() {
     setSmsNotification(null);
   };
 
-  const handleLoginSuccess = (user: UserType, portal: "resident" | "guard" | "admin" | "super_admin") => {
+  const handleLoginSuccess = (user: UserType, portal: "resident" | "guard" | "admin" | "super_admin" | "unified") => {
     setCurrentUser(user);
     setActivePortal(portal);
     localStorage.setItem("gatekaru_user", JSON.stringify(user));
     localStorage.setItem("gatekaru_portal", portal);
 
     // Check onboarding for first-time login
-    if (portal === "resident" || portal === "admin") {
+    if (portal === "resident" || portal === "admin" || portal === "unified") {
       const onboardKey = `gatekaru_onboarded_${user.id}`;
       if (!localStorage.getItem(onboardKey)) {
         setShowOnboarding(true);
@@ -1165,6 +1166,9 @@ export default function App() {
 
   const availablePortals: { id: string; name: string; icon: string }[] = [];
   if (currentUser) {
+    if (currentUser.role === "both") {
+      availablePortals.push({ id: "unified", name: getTranslation(globalLang, "app.unified_portal", "Unified Suite / दोनों एकीकृत"), icon: "💎" });
+    }
     if (currentUser.role === "resident" || currentUser.role === "both" || currentUser.id === "u1") {
       availablePortals.push({ id: "resident", name: getTranslation(globalLang, "app.resident_portal", "Resident Portal"), icon: "🏡" });
     }
@@ -1208,7 +1212,8 @@ export default function App() {
             {/* Active Portal Title Indicator */}
             <div className="hidden md:flex items-center pl-3 border-l border-slate-200 ml-1">
               <span className="text-[10px] font-black uppercase text-indigo-600 tracking-wider">
-                {activePortal === "resident" ? getTranslation(globalLang, "portal.resident_title", "🏡 Resident Dashboard") : 
+                {activePortal === "unified" ? getTranslation(globalLang, "portal.unified_title", "💎 Unified Multi-Role Suite") :
+                 activePortal === "resident" ? getTranslation(globalLang, "portal.resident_title", "🏡 Resident Dashboard") : 
                  activePortal === "guard" ? getTranslation(globalLang, "portal.guard_title", "🛡️ Security Guard Station") : 
                  activePortal === "admin" ? getTranslation(globalLang, "portal.admin_title", "📊 Society Committee Suite") : 
                  getTranslation(globalLang, "portal.super_admin_title", "🏢 Platform Super Admin")}
@@ -1628,6 +1633,30 @@ export default function App() {
               globalLang={globalLang}
               programs={programs}
               onRefreshPrograms={fetchAllData}
+            />
+          )}
+
+          {currentUser && activePortal === "unified" && (
+            <UnifiedDashboard 
+              currentUser={currentUser}
+              users={users}
+              onApproveResident={fetchAllData}
+              visitors={visitors}
+              onVisitorAction={handleVisitorAction}
+              bills={bills}
+              onPayBill={handlePayBill}
+              complaints={complaints}
+              onAddComplaint={handleAddComplaint}
+              onUpdateComplaint={handleUpdateComplaint}
+              notices={notices}
+              onAddNotice={handleAddNotice}
+              polls={polls}
+              onVotePoll={handleVote}
+              onAddPoll={handleAddPoll}
+              alerts={alerts}
+              onTriggerSOS={handleTriggerSOS}
+              onResolveAlert={handleResolveAlert}
+              globalLang={globalLang}
             />
           )}
 
