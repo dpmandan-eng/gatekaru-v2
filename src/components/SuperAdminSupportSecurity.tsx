@@ -421,6 +421,50 @@ export default function SuperAdminSupportSecurity({ activeSection }: SuperAdminS
               </div>
             </div>
 
+            {/* API Keys Management */}
+            <div className="bg-[#0b1029]/80 border border-[#1e2a5e] rounded-2xl p-5 space-y-3 text-xs">
+              <div className="flex items-center justify-between border-b border-[#1c295c] pb-2">
+                <h3 className="font-extrabold text-white text-sm uppercase tracking-wider flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-amber-400" /> Multi-Tenant API Keys Vault
+                </h3>
+                <button 
+                  type="button"
+                  onClick={() => alert("🔑 New API secret generated: gk_live_sec_key_" + Math.random().toString(36).substring(2, 12))}
+                  className="bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition"
+                >
+                  + Generate Secret
+                </button>
+              </div>
+              <div className="space-y-2 font-mono text-[10.5px]">
+                <div className="p-2.5 bg-[#070b1a] border border-[#1a285a] rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-amber-300 font-bold block">gk_live_8492019482104</span>
+                    <span className="text-[9px] text-slate-500">Read/Write • Society Sync API</span>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => alert("Copied API key to clipboard!")}
+                    className="text-[9px] bg-slate-800 text-slate-300 px-2 py-1 rounded font-sans uppercase font-bold hover:bg-slate-700"
+                  >
+                    Copy Key
+                  </button>
+                </div>
+                <div className="p-2.5 bg-[#070b1a] border border-[#1a285a] rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-amber-300 font-bold block">gk_live_9921049102831</span>
+                    <span className="text-[9px] text-slate-500">Read Only • CCTV Relay Endpoint</span>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => alert("Copied API key to clipboard!")}
+                    className="text-[9px] bg-slate-800 text-slate-300 px-2 py-1 rounded font-sans uppercase font-bold hover:bg-slate-700"
+                  >
+                    Copy Key
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
 
         </div>

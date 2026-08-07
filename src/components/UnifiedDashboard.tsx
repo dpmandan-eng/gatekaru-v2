@@ -18,10 +18,23 @@ import {
   FileText, 
   Megaphone,
   Vote,
-  Briefcase
+  Briefcase,
+  BarChart2,
+  TrendingUp,
+  Activity,
+  Smartphone,
+  Tv,
+  PhoneCall,
+  ShieldAlert,
+  CheckCircle2,
+  RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { User, Visitor, MaintenanceBill, Complaint, Notice, Poll, GuardAlert } from "../types";
+import UserAnalytics from "./UserAnalytics";
+import GateAnalyticsChart from "./GateAnalyticsChart";
+import MonthlySecurityTrendsChart from "./MonthlySecurityTrendsChart";
+import { StatCardSkeleton, ListCardSkeleton, ChartCardSkeleton, DashboardGridSkeleton } from "./Skeleton";
 
 interface UnifiedDashboardProps {
   currentUser: User;
@@ -66,14 +79,119 @@ export default function UnifiedDashboard({
   globalLang,
   onApproveResident
 }: UnifiedDashboardProps) {
-  // Tabs: Summary Hub, My Home, Committee Desk
-  const [activeTab, setActiveTab] = useState<"summary" | "home" | "committee">("summary");
+  // Tabs: Summary Hub, My Home, Committee Desk, Activity Logs, User Analytics
+  const [activeTab, setActiveTab] = useState<"summary" | "home" | "committee" | "logs" | "analytics">("summary");
+  const [logScope, setLogScope] = useState<"mine" | "all">("mine");
+  const [logTypeFilter, setLogTypeFilter] = useState<"all" | "gate_entry" | "approval" | "alert">("all");
+  const [logSearch, setLogSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleRefreshDashboard = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+  };
   
   // Modals / Form toggles
   const [showPreapproveModal, setShowPreapproveModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [showPollModal, setShowPollModal] = useState(false);
+  const [showQuickDialModal, setShowQuickDialModal] = useState(false);
+  const [pendingDispatchTemplate, setPendingDispatchTemplate] = useState<any>(null);
+  const [quickDialResult, setQuickDialResult] = useState<any>(null);
+  const [isQuickDialing, setIsQuickDialing] = useState(false);
+
+  const quickDialTemplates = [
+    {
+      id: "medical",
+      label: "Medical Emergency",
+      hindiLabel: "चिकित्सा आपातकाल",
+      icon: "🚑",
+      badge: "Priority 1",
+      color: "from-red-600 to-rose-700 text-white",
+      type: "Medical Emergency",
+      defaultText: "Urgent medical assistance requested at Flat " + (currentUser?.flat || "A-402") + "! Please dispatch first-aid and coordinate ambulance."
+    },
+    {
+      id: "fire",
+      label: "Fire / Smoke Hazard",
+      hindiLabel: "आग / धुआँ चेतावनी",
+      icon: "🔥",
+      badge: "High Alert",
+      color: "from-amber-600 to-orange-700 text-white",
+      type: "Fire Hazard",
+      defaultText: "Fire / Smoke outbreak reported near Flat " + (currentUser?.flat || "A-402") + "! Guard desk inspect immediately with extinguishers."
+    },
+    {
+      id: "intruder",
+      label: "Intruder / Threat",
+      hindiLabel: "सुरक्षा / संदिग्ध खतरा",
+      icon: "🛡️",
+      badge: "Security",
+      color: "from-purple-600 to-indigo-800 text-white",
+      type: "Security Threat",
+      defaultText: "Unidentified intruder or suspicious movement near Flat " + (currentUser?.flat || "A-402") + "! Immediate guard deployment requested."
+    },
+    {
+      id: "lift",
+      label: "Lift Stuck / Trapped",
+      hindiLabel: "लिफ्ट आपातकाल",
+      icon: "⚡",
+      badge: "Facility",
+      color: "from-blue-600 to-cyan-700 text-white",
+      type: "Elevator Emergency",
+      defaultText: "Resident trapped inside elevator near Block A! Dispatched technician team & guard desk."
+    },
+    {
+      id: "gate_block",
+      label: "Gate Path Obstruction",
+      hindiLabel: "द्वार मार्ग अवरोध",
+      icon: "🚗",
+      badge: "Access Gate",
+      color: "from-slate-700 to-slate-900 text-white",
+      type: "Gate Obstruction",
+      defaultText: "Emergency vehicle or driveway route blocked at Main Gate. Guard clear obstruction immediately."
+    }
+  ];
+
+  const handleQuickDialDispatchUnified = async (template: typeof quickDialTemplates[0]) => {
+    setIsQuickDialing(true);
+    setQuickDialResult(null);
+    try {
+      const flatNo = currentUser?.flat || "A-402";
+      const fullMsg = `🚨 [QUICK DIAL ${template.type.toUpperCase()}]: ${template.defaultText}`;
+      
+      const response = await fetch("/api/alerts/sos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender: currentUser?.name || "Aarav Sharma",
+          message: fullMsg,
+          type: template.type,
+          flat: flatNo
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setQuickDialResult({
+          message: fullMsg,
+          type: template.type,
+          dispatches: data.dispatches || [],
+          timestamp: new Date().toLocaleTimeString()
+        });
+        if (onTriggerSOS) {
+          onTriggerSOS(template.type, fullMsg);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsQuickDialing(false);
+    }
+  };
 
   // Form states - Pre-approve
   const [visitorName, setVisitorName] = useState("");
@@ -118,6 +236,170 @@ export default function UnifiedDashboard({
   const pendingResidents = users.filter(u => u.role === "resident" && !u.isApproved);
   const activeSOS = alerts.filter(a => a.status === "Active");
   const societyComplaints = complaints.filter(c => c.status !== "Resolved");
+
+  // -------------------------------------------------------------
+  // Chronological Activity Logs Calculations
+  // -------------------------------------------------------------
+  const isMultiRoleUser = currentUser.role === "admin" || currentUser.role === "super_admin" || currentUser.role === "guard" || currentUser.role === "both";
+
+  const allLogs = React.useMemo(() => {
+    interface LogItem {
+      id: string;
+      type: "gate_entry" | "approval" | "alert";
+      title: string;
+      titleHindi?: string;
+      description: string;
+      timestamp: string;
+      status?: string;
+      flat?: string;
+      badgeColor: string;
+    }
+    const logs: LogItem[] = [];
+
+    // 1. Gate Entries (Checked-In/Checked-Out visitors)
+    const activeVisitorScope = logScope === "all" ? visitors : myVisitors;
+    activeVisitorScope.forEach(v => {
+      if (v.status === "Checked-In" && v.checkedInAt) {
+        logs.push({
+          id: `gate_in_${v.id}`,
+          type: "gate_entry",
+          title: `Gate Entry: ${v.name} Checked-In`,
+          titleHindi: `गेट प्रवेश: ${v.name} अंदर आए`,
+          description: `Type: ${v.type} • Purpose: ${v.purpose} • Gate: ${v.gateName || "Main Gate"} ${v.vehicleNumber ? `• Vehicle: ${v.vehicleNumber}` : ""}`,
+          timestamp: v.checkedInAt,
+          status: "Checked-In",
+          flat: v.flat,
+          badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200"
+        });
+      } else if (v.status === "Checked-Out" && v.checkedOutAt) {
+        // Render both if we have timestamps for both
+        if (v.checkedInAt) {
+          logs.push({
+            id: `gate_in_${v.id}`,
+            type: "gate_entry",
+            title: `Gate Entry: ${v.name} Checked-In`,
+            titleHindi: `गेट प्रवेश: ${v.name} अंदर आए`,
+            description: `Type: ${v.type} • Purpose: ${v.purpose} • Gate: ${v.gateName || "Main Gate"} ${v.vehicleNumber ? `• Vehicle: ${v.vehicleNumber}` : ""}`,
+            timestamp: v.checkedInAt,
+            status: "Checked-In",
+            flat: v.flat,
+            badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200"
+          });
+        }
+        logs.push({
+          id: `gate_out_${v.id}`,
+          type: "gate_entry",
+          title: `Gate Exit: ${v.name} Checked-Out`,
+          titleHindi: `गेट निकास: ${v.name} बाहर गए`,
+          description: `Type: ${v.type} • Handled at: ${v.gateName || "Main Gate"}`,
+          timestamp: v.checkedOutAt,
+          status: "Checked-Out",
+          flat: v.flat,
+          badgeColor: "bg-slate-100 text-slate-800 border-slate-200"
+        });
+      }
+    });
+
+    // 2. Approvals & Pre-Approvals
+    const activePreapprovedScope = logScope === "all" ? visitors : myVisitors;
+    activePreapprovedScope.forEach(v => {
+      if (v.status === "Pre-Approved") {
+        logs.push({
+          id: `approve_pre_${v.id}`,
+          type: "approval",
+          title: `Visitor Invite Pre-Approved: ${v.name}`,
+          titleHindi: `आगंतुक आमंत्रण पूर्व-स्वीकृत: ${v.name}`,
+          description: `Pre-approved guest invite passcode issued for Flat ${v.flat}. Code: ${v.passcode || "N/A"}`,
+          timestamp: v.requestedAt,
+          status: "Pre-Approved",
+          flat: v.flat,
+          badgeColor: "bg-blue-100 text-blue-800 border-blue-200"
+        });
+      }
+    });
+
+    // Maintenance Bills Paid
+    const activeBillsScope = logScope === "all" ? bills : myBills;
+    activeBillsScope.forEach(b => {
+      if (b.status === "Paid" && b.paidAt) {
+        logs.push({
+          id: `approve_bill_${b.id}`,
+          type: "approval",
+          title: `Maintenance Bill Paid: ${b.title}`,
+          titleHindi: `रखरखाव शुल्क का भुगतान: ${b.title}`,
+          description: `Payment of ₹${b.amount} completed for Flat ${b.flat}. Ref: ${b.transactionId || "Online transaction"}`,
+          timestamp: b.paidAt,
+          status: "Paid",
+          flat: b.flat,
+          badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200"
+        });
+      }
+    });
+
+    // Complaints resolved or assigned
+    const activeComplaintsScope = logScope === "all" ? complaints : myComplaints;
+    activeComplaintsScope.forEach(c => {
+      if (c.status === "Resolved") {
+        const lastUpdate = c.updates && c.updates.length > 0 ? c.updates[c.updates.length - 1] : null;
+        logs.push({
+          id: `approve_complaint_${c.id}`,
+          type: "approval",
+          title: `Complaint Resolved: ${c.title}`,
+          titleHindi: `शिकायत का समाधान: ${c.title}`,
+          description: `Ticket regarding ${c.category} filed by ${c.residentName} (Flat ${c.flat}) is marked Resolved. ${lastUpdate ? `Comment: "${lastUpdate.note}"` : ""}`,
+          timestamp: lastUpdate ? lastUpdate.date : c.createdAt,
+          status: "Resolved",
+          flat: c.flat,
+          badgeColor: "bg-teal-100 text-teal-800 border-teal-200"
+        });
+      } else if (c.status === "Assigned") {
+        logs.push({
+          id: `assign_complaint_${c.id}`,
+          type: "approval",
+          title: `Complaint Ticket Assigned: ${c.title}`,
+          titleHindi: `शिकायत टिकट आवंटित: ${c.title}`,
+          description: `Ticket regarding ${c.category} (Flat ${c.flat}) was assigned to our technical field team.`,
+          timestamp: c.createdAt,
+          status: "Assigned",
+          flat: c.flat,
+          badgeColor: "bg-amber-100 text-amber-800 border-amber-200"
+        });
+      }
+    });
+
+    // 3. System Alerts
+    // Alerts are global security broadcasts
+    alerts.forEach(a => {
+      logs.push({
+        id: `alert_${a.id}`,
+        type: "alert",
+        title: `Security Broadcast: ${a.type}`,
+        titleHindi: `सुरक्षा प्रसारण: ${a.type}`,
+        description: `${a.message} (Logged by ${a.sender || "Staff Guard"})`,
+        timestamp: a.timestamp,
+        status: a.status,
+        badgeColor: a.status === "Active" ? "bg-rose-100 text-rose-800 border-rose-200" : "bg-slate-100 text-slate-800 border-slate-200"
+      });
+    });
+
+    return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [visitors, myVisitors, bills, myBills, complaints, myComplaints, alerts, logScope]);
+
+  const filteredLogs = React.useMemo(() => {
+    return allLogs.filter(item => {
+      if (logTypeFilter !== "all" && item.type !== logTypeFilter) return false;
+
+      if (logSearch.trim()) {
+        const query = logSearch.toLowerCase();
+        const matchesTitle = item.title.toLowerCase().includes(query) || (item.titleHindi && item.titleHindi.toLowerCase().includes(query));
+        const matchesDesc = item.description.toLowerCase().includes(query);
+        const matchesFlat = item.flat && item.flat.toLowerCase().includes(query);
+        const matchesStatus = item.status && item.status.toLowerCase().includes(query);
+        return !!(matchesTitle || matchesDesc || matchesFlat || matchesStatus);
+      }
+      return true;
+    });
+  }, [allLogs, logTypeFilter, logSearch]);
 
   // Handle Approve Resident
   const handleApproveUser = async (userId: string) => {
@@ -277,6 +559,20 @@ export default function UnifiedDashboard({
           {/* Quick Actions Header Trigger */}
           <div className="flex flex-wrap gap-2 shrink-0">
             <button 
+              onClick={handleRefreshDashboard}
+              className="bg-indigo-950 hover:bg-indigo-900 text-indigo-200 text-[11px] font-extrabold uppercase tracking-wider px-3.5 py-2 rounded-xl border border-indigo-700/60 transition shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95"
+              title="Refresh dashboard data and show skeleton loading"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isLoading ? "animate-spin" : ""}`} />
+              <span>Refresh</span>
+            </button>
+            <button 
+              onClick={() => setShowQuickDialModal(true)}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-black uppercase tracking-wider px-3.5 py-2 rounded-xl transition shadow-lg shadow-amber-500/30 ring-2 ring-amber-400/60 animate-pulse hover:animate-none flex items-center gap-1.5 cursor-pointer active:scale-95 border border-amber-300"
+            >
+              <PhoneCall className="w-4 h-4 text-slate-950 animate-bounce" /> Quick Dial SOS
+            </button>
+            <button 
               onClick={() => setShowPreapproveModal(true)}
               className="bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-extrabold uppercase tracking-wider px-3.5 py-2 rounded-xl transition shadow-lg shadow-indigo-600/15 flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
@@ -289,7 +585,7 @@ export default function UnifiedDashboard({
               <Megaphone className="w-4 h-4" /> Post Notice
             </button>
             <button 
-              onClick={() => onTriggerSOS && onTriggerSOS("Medical Distress", "Initiated from Unified Dashboard")}
+              onClick={() => setShowQuickDialModal(true)}
               className="bg-red-600 hover:bg-red-500 text-white text-[11px] font-extrabold uppercase tracking-wider px-3.5 py-2 rounded-xl transition shadow-lg shadow-red-600/15 flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
               <AlertTriangle className="w-4 h-4 animate-bounce" /> Trigger SOS
@@ -299,8 +595,8 @@ export default function UnifiedDashboard({
       </div>
 
       {/* Tabs Selector Navigation */}
-      <div className="bg-white border-b border-slate-200 px-6 shrink-0 shadow-xs">
-        <div className="max-w-7xl mx-auto flex gap-4">
+      <div className="bg-white border-b border-slate-200 px-3 sm:px-6 shrink-0 shadow-xs overflow-x-auto scrollbar-none">
+        <div className="max-w-7xl mx-auto flex gap-2 sm:gap-4 min-w-max">
           <button
             onClick={() => setActiveTab("summary")}
             className={`py-3 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
@@ -331,6 +627,26 @@ export default function UnifiedDashboard({
           >
             <Briefcase className="w-4 h-4" /> Committee Desk (प्रबंध समिति)
           </button>
+          <button
+            onClick={() => setActiveTab("logs")}
+            className={`py-3 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === "logs" 
+                ? "border-indigo-600 text-indigo-700" 
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Clock className="w-4 h-4" /> Activity Logs (गतिविधि लॉग)
+          </button>
+          <button
+            onClick={() => setActiveTab("analytics")}
+            className={`py-3 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === "analytics" 
+                ? "border-indigo-600 text-indigo-700" 
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <BarChart2 className="w-4 h-4" /> User Analytics (यूज़र विश्लेषिकी)
+          </button>
         </div>
       </div>
 
@@ -359,10 +675,14 @@ export default function UnifiedDashboard({
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-7xl mx-auto space-y-6">
 
-          {/* ========================================================== */}
-          {/* TAB 1: SUMMARY HUB (Bento Grid combining both worlds) */}
-          {/* ========================================================== */}
-          {activeTab === "summary" && (
+          {isLoading ? (
+            <DashboardGridSkeleton />
+          ) : (
+            <>
+              {/* ========================================================== */}
+              {/* TAB 1: SUMMARY HUB (Bento Grid combining both worlds) */}
+              {/* ========================================================== */}
+              {activeTab === "summary" && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
               {/* Critical Alerts Row (SOS alerts if active, pending resident approvals) */}
@@ -469,6 +789,12 @@ export default function UnifiedDashboard({
                     <CheckCircle className="w-5 h-5" />
                   </div>
                 </div>
+              </div>
+
+              {/* Peak Hour Gate Security Analytics & Monthly Security Trends */}
+              <div className="lg:col-span-3 space-y-6">
+                <GateAnalyticsChart darkMode={false} />
+                <MonthlySecurityTrendsChart darkMode={false} />
               </div>
 
               {/* COLUMN 1: Resident Fast Desk */}
@@ -989,6 +1315,234 @@ export default function UnifiedDashboard({
             </div>
           )}
 
+          {/* ========================================================== */}
+          {/* TAB 4: ACTIVITY LOGS (गतिविधि लॉग) */}
+          {/* ========================================================== */}
+          {activeTab === "logs" && (
+            <div className="space-y-6">
+              {/* Header card with rich metadata */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-2xl text-slate-600 shrink-0">
+                    📋
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800 uppercase">
+                      Comprehensive Activity Logs & Audit Trail / गतिविधि लॉग विवरण
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Real-time chronological ledger of visitor entries, pre-approvals, resolved complaints, paid bills, and security alerts.
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Logged in as <span className="font-bold text-slate-600">{currentUser.name}</span> • Flat <span className="font-bold text-slate-600">{myFlat}</span> • Role: <span className="font-bold uppercase text-indigo-600">{currentUser.role}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Scope selector shown only to multi-role users */}
+                {isMultiRoleUser && (
+                  <div className="bg-slate-50 p-1.5 rounded-xl border border-slate-200 flex items-center gap-1 shrink-0 self-stretch md:self-auto">
+                    <button
+                      onClick={() => setLogScope("mine")}
+                      className={`px-3 py-1.5 text-[10px] font-extrabold uppercase rounded-lg transition cursor-pointer ${
+                        logScope === "mine"
+                          ? "bg-white text-slate-800 shadow-sm"
+                          : "text-slate-400 hover:text-slate-700"
+                      }`}
+                    >
+                      My Flat Logs
+                    </button>
+                    <button
+                      onClick={() => setLogScope("all")}
+                      className={`px-3 py-1.5 text-[10px] font-extrabold uppercase rounded-lg transition cursor-pointer ${
+                        logScope === "all"
+                          ? "bg-white text-slate-800 shadow-sm"
+                          : "text-slate-400 hover:text-slate-700"
+                      }`}
+                    >
+                      All Society Logs
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Filters Panel */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-4 shadow-xs">
+                <div className="flex flex-col md:flex-row gap-3">
+                  {/* Search Bar */}
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={logSearch}
+                      onChange={(e) => setLogSearch(e.target.value)}
+                      placeholder="Search by visitor name, flat number, alert message, passcode..."
+                      className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-slate-300 transition"
+                    />
+                    <div className="absolute left-3 top-3.5 text-slate-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    {logSearch && (
+                      <button
+                        onClick={() => setLogSearch("")}
+                        className="absolute right-2.5 top-2.5 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter category chips */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      onClick={() => setLogTypeFilter("all")}
+                      className={`px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition border ${
+                        logTypeFilter === "all"
+                          ? "bg-slate-900 border-slate-900 text-white"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      All ({allLogs.length})
+                    </button>
+                    <button
+                      onClick={() => setLogTypeFilter("gate_entry")}
+                      className={`px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition border flex items-center gap-1.5 ${
+                        logTypeFilter === "gate_entry"
+                          ? "bg-emerald-800 border-emerald-800 text-white"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <ArrowRight className="w-3.5 h-3.5 text-emerald-600" /> Gate Entries ({allLogs.filter(l => l.type === "gate_entry").length})
+                    </button>
+                    <button
+                      onClick={() => setLogTypeFilter("approval")}
+                      className={`px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition border flex items-center gap-1.5 ${
+                        logTypeFilter === "approval"
+                          ? "bg-indigo-800 border-indigo-800 text-white"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5 text-indigo-600" /> Approvals & Actions ({allLogs.filter(l => l.type === "approval").length})
+                    </button>
+                    <button
+                      onClick={() => setLogTypeFilter("alert")}
+                      className={`px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition border flex items-center gap-1.5 ${
+                        logTypeFilter === "alert"
+                          ? "bg-rose-800 border-rose-800 text-white"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600" /> Security Alerts ({allLogs.filter(l => l.type === "alert").length})
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Feed List */}
+              <div className="space-y-3">
+                {filteredLogs.length === 0 ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center space-y-3">
+                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 mx-auto text-xl">
+                      🔍
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-black text-slate-700">No activity logs matching your filter criteria / कोई गतिविधि लॉग नहीं मिला</p>
+                      <p className="text-[10px] text-slate-400">Try refining your search text or switching the log type category.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredLogs.map((item, idx) => {
+                      const logDate = new Date(item.timestamp);
+                      const dateStr = logDate.toLocaleDateString(globalLang === "hi" ? "hi-IN" : "en-US", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric"
+                      });
+                      const timeStr = logDate.toLocaleTimeString(globalLang === "hi" ? "hi-IN" : "en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      });
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-white p-4 rounded-2xl border border-slate-100 flex items-start gap-4 hover:border-slate-300 transition duration-150"
+                        >
+                          {/* Log category icon wrapper */}
+                          <div className={`p-2.5 rounded-xl border flex items-center justify-center shrink-0 ${
+                            item.type === "gate_entry" ? "bg-emerald-50 border-emerald-100 text-emerald-600" :
+                            item.type === "approval" ? "bg-indigo-50 border-indigo-100 text-indigo-600" :
+                            "bg-rose-50 border-rose-100 text-rose-600"
+                          }`}>
+                            {item.type === "gate_entry" && <ArrowRight className="w-4 h-4" />}
+                            {item.type === "approval" && <CheckCircle className="w-4 h-4" />}
+                            {item.type === "alert" && <AlertTriangle className="w-4 h-4" />}
+                          </div>
+
+                          {/* Log item details */}
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <h4 className="text-[11px] font-black text-slate-800 leading-tight">
+                                  {item.title}
+                                </h4>
+                                {globalLang === "hi" && item.titleHindi && (
+                                  <p className="text-[9px] text-slate-400 italic">
+                                    {item.titleHindi}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-[10px] font-extrabold text-slate-700">{dateStr}</p>
+                                <p className="text-[9px] text-slate-400">{timeStr}</p>
+                              </div>
+                            </div>
+
+                            <p className="text-[11px] text-slate-600 italic">
+                              "{item.description}"
+                            </p>
+
+                            <div className="pt-1 flex flex-wrap items-center gap-1.5 text-[9px] font-semibold text-slate-400">
+                              {item.flat && (
+                                <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-sm font-bold uppercase">
+                                  Flat {item.flat}
+                                </span>
+                              )}
+                              <span className="bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded-sm capitalize">
+                                Category: {item.type.replace("_", " ")}
+                              </span>
+                              {item.status && (
+                                <span className={`px-1.5 py-0.5 rounded-sm font-bold uppercase border text-[8px] ${item.badgeColor}`}>
+                                  {item.status}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================== */}
+          {/* TAB 5: USER ANALYTICS & SECURITY TRENDS (यूज़र विश्लेषिकी) */}
+          {/* ========================================================== */}
+          {activeTab === "analytics" && (
+            <div className="space-y-6">
+              <MonthlySecurityTrendsChart darkMode={false} />
+              <GateAnalyticsChart darkMode={false} />
+              <UserAnalytics />
+            </div>
+          )}
+
+            </>
+          )}
+
         </div>
       </div>
 
@@ -1327,6 +1881,248 @@ export default function UnifiedDashboard({
               </form>
             </motion.div>
           </div>
+        )}
+
+        {/* Quick Dial Emergency SOS Modal */}
+        {showQuickDialModal && (
+          <div className="fixed inset-0 bg-[#040612]/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white border border-red-200 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden text-left my-8"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 p-5 text-white relative overflow-hidden">
+                <div className="flex justify-between items-start relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-white/20 backdrop-blur-md rounded-xl text-amber-200">
+                      <PhoneCall className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <span className="bg-white/20 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block">
+                        🚨 Quick Dial Emergency Console
+                      </span>
+                      <h3 className="text-lg font-black tracking-tight mt-0.5">
+                        Direct Guard & Admin Simultaneous Alert
+                      </h3>
+                      <p className="text-xs text-red-100 font-medium mt-0.5">
+                        Flat {myFlat} • Greenwood Heights Society Admin & Guard Desk
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setShowQuickDialModal(false)}
+                    className="p-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+                {/* Intercom Direct Call Buttons */}
+                <div>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+                    <PhoneCall className="w-4 h-4 text-red-600" />
+                    <span>Direct Intercom Quick Dial Contacts</span>
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded uppercase">Gate 1 Guard</span>
+                        <h5 className="font-extrabold text-slate-900 text-xs mt-2">Main Gate Cabin</h5>
+                        <p className="text-[11px] font-bold text-slate-600 mt-0.5">+91 98765 43210</p>
+                      </div>
+                      <a href="tel:+919876543210" className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition">
+                        <PhoneCall className="w-3.5 h-3.5" /> CALL GUARD
+                      </a>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-black bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded uppercase">Admin Office</span>
+                        <h5 className="font-extrabold text-slate-900 text-xs mt-2">Vikram Mehta (Admin)</h5>
+                        <p className="text-[11px] font-bold text-slate-600 mt-0.5">+91 98100 23456</p>
+                      </div>
+                      <a href="tel:+919810023456" className="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition">
+                        <PhoneCall className="w-3.5 h-3.5" /> CALL ADMIN
+                      </a>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-black bg-red-100 text-red-800 px-2 py-0.5 rounded uppercase">Control Room</span>
+                        <h5 className="font-extrabold text-slate-900 text-xs mt-2">Emergency Control</h5>
+                        <p className="text-[11px] font-bold text-slate-600 mt-0.5">+91 11-4020-8888</p>
+                      </div>
+                      <a href="tel:+911140208888" className="mt-3 w-full bg-red-600 hover:bg-red-700 text-white text-[11px] font-black py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition">
+                        <PhoneCall className="w-3.5 h-3.5" /> CALL DESK
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pre-Configured Alert Triggers */}
+                <div>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-red-600" />
+                    <span>1-Tap Pre-Configured Alert Triggers (Simultaneous Guard + Admin)</span>
+                  </h4>
+                  <div className="space-y-2.5">
+                    {quickDialTemplates.map((template) => (
+                      <div key={template.id} className="bg-white border border-slate-200 hover:border-red-300 rounded-xl p-3.5 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl p-2 bg-slate-100 rounded-xl">{template.icon}</span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h5 className="font-extrabold text-slate-900 text-xs">{template.label}</h5>
+                              <span className="text-[10px] text-slate-500 font-bold">({template.hindiLabel})</span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 mt-0.5 font-medium">"{template.defaultText}"</p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={isQuickDialing}
+                          onClick={() => setPendingDispatchTemplate(template)}
+                          className={`bg-gradient-to-r ${template.color} hover:brightness-110 text-xs font-black px-4 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50`}
+                        >
+                          <Send className="w-3.5 h-3.5" /> 1-TAP DISPATCH
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live Dispatch Log */}
+                {quickDialResult && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 space-y-3"
+                  >
+                    <div className="flex items-center justify-between border-b border-emerald-200 pb-2">
+                      <div className="flex items-center gap-2 text-emerald-900 font-extrabold text-xs">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 animate-bounce" />
+                        <span>ALERT DISPATCHED TO GUARD & ADMIN SIMULTANEOUSLY!</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-700">{quickDialResult.timestamp}</span>
+                    </div>
+
+                    <p className="text-xs text-emerald-950 font-bold bg-white/80 p-2 rounded-lg border border-emerald-100">
+                      {quickDialResult.message}
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                      {quickDialResult.dispatches.map((d: any, idx: number) => (
+                        <div key={idx} className="bg-white p-2 rounded-lg border border-emerald-200 flex items-start gap-2">
+                          <span className="text-emerald-600 font-black">✓</span>
+                          <div>
+                            <span className="font-extrabold text-slate-900 block">{d.target}</span>
+                            <span className="text-[10px] text-slate-500 font-semibold">{d.channel} • {d.details || d.status}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+                <span className="text-[10px] text-slate-500 font-bold">GateKaru Emergency Protocol Operational</span>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickDialModal(false)}
+                  className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-xl transition cursor-pointer"
+                >
+                  Close Console
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Confirmation Dialog before Quick Dial Dispatch */}
+        {pendingDispatchTemplate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPendingDispatchTemplate(null)}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[70] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white border-2 border-red-500 rounded-2xl p-6 max-w-md w-full shadow-2xl text-left space-y-4 relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-28 h-28 bg-red-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+              <div className="flex items-center gap-3 border-b border-red-100 pb-3">
+                <div className="p-3 bg-red-100 text-red-600 rounded-xl text-2xl animate-bounce shrink-0">
+                  ⚠️
+                </div>
+                <div>
+                  <span className="text-[10px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Emergency Guard & Admin Alert
+                  </span>
+                  <h3 className="text-base font-black text-slate-900 mt-0.5">
+                    Confirm Dispatching Alert?
+                  </h3>
+                  <p className="text-xs text-slate-500 font-semibold">
+                    Accidental Trigger Prevention Check
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-red-50/70 border border-red-200 rounded-xl p-3.5 space-y-2.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="font-extrabold text-red-900">Emergency Type:</span>
+                  <span className="font-black text-red-700 bg-red-100 px-2.5 py-0.5 rounded text-[11px] border border-red-200">
+                    {pendingDispatchTemplate.label || pendingDispatchTemplate.type}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-extrabold text-red-900 block mb-1">Broadcasting Message:</span>
+                  <p className="text-slate-800 font-bold bg-white p-2.5 rounded-lg border border-red-200 text-xs leading-relaxed">
+                    "{pendingDispatchTemplate.defaultText}"
+                  </p>
+                </div>
+                <div className="text-[10px] font-extrabold text-red-800 bg-red-100/80 p-2 rounded-lg border border-red-200/80 flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>Notifies Gate 1 Security Guard, Walkie-Talkie & Admin SMS simultaneously.</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingDispatchTemplate(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition cursor-pointer"
+                >
+                  Cancel / Stop
+                </button>
+                <button
+                  type="button"
+                  disabled={isQuickDialing}
+                  onClick={() => {
+                    const template = pendingDispatchTemplate;
+                    setPendingDispatchTemplate(null);
+                    handleQuickDialDispatchUnified(template);
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 active:scale-95 text-white font-black text-xs rounded-xl shadow-lg shadow-red-600/30 transition flex items-center gap-2 cursor-pointer disabled:opacity-50 uppercase tracking-wider"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>YES, DISPATCH NOW 🚨</span>
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

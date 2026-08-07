@@ -4,6 +4,9 @@ import {
   Search, RefreshCw, DollarSign, Calendar, Shield, Info, Send, UserPlus, Sliders, CheckCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import SecurityDesk from "./SecurityDesk";
+import GateAnalyticsChart from "./GateAnalyticsChart";
+import MonthlySecurityTrendsChart from "./MonthlySecurityTrendsChart";
 
 // custom types specified in instructions
 interface ResidentRecord {
@@ -79,7 +82,7 @@ export default function AdminPortal({
   // 1. Live States for Interlinked Math Engine
   const [totalFlats, setTotalFlats] = useState<number>(35);
   const [societyContribution, setSocietyContribution] = useState<number>(15000);
-  const [activeTab, setActiveTab] = useState<"quotation" | "vargani" | "roster">("quotation");
+  const [activeTab, setActiveTab] = useState<"quotation" | "vargani" | "roster" | "securitydesk">("quotation");
 
   // 2. Custom Secure State Initialization with complex mock profiles as requested
   const [residents, setResidents] = useState<ResidentRecord[]>([
@@ -461,6 +464,12 @@ export default function AdminPortal({
           </div>
         </section>
 
+        {/* Gate Peak Hour Analytics & Monthly Security Trends Visualizers */}
+        <section id="admin-gate-analytics" className="w-full space-y-6">
+          <GateAnalyticsChart darkMode={true} />
+          <MonthlySecurityTrendsChart darkMode={true} />
+        </section>
+
         {/* 3. TRIPLE-TABBED DATAGRID ROUTING MATRIX */}
         <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
           
@@ -495,6 +504,16 @@ export default function AdminPortal({
               }`}
             >
               <Users className="w-4 h-4" /> 📂 Resident Roster Directory
+            </button>
+            <button
+              onClick={() => setActiveTab("securitydesk")}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 ${
+                activeTab === "securitydesk"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-950"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
+              }`}
+            >
+              <Shield className="w-4 h-4" /> 🛡️ सुरक्षा ऑपरेशन्स (Security Desk)
             </button>
           </div>
 
@@ -1007,6 +1026,20 @@ export default function AdminPortal({
                       </form>
                     </div>
 
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === "securitydesk" && (
+                <motion.div
+                  key="tab-securitydesk"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-6"
+                >
+                  <div className="bg-slate-900 p-4 rounded-2xl border border-slate-700">
+                    <SecurityDesk />
                   </div>
                 </motion.div>
               )}

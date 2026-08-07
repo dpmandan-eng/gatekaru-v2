@@ -308,16 +308,32 @@ export default function LoginPortal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phoneNumber })
       });
-      const data = await response.json();
+      
+      const contentType = response.headers.get("content-type") || "";
+      let data: any = {};
+      if (contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const textText = await response.text();
+        console.error("Non-JSON API response:", textText);
+        throw new Error("Unable to connect to login server. Please try again.");
+      }
+
       if (!response.ok) {
         throw new Error(data.error || "Failed to send OTP.");
       }
 
       // Use user from response or find in current users
-      const user = data.user || users.find(u => normalizePhone(u.phone).includes(cleanEntered) || cleanEntered.includes(normalizePhone(u.phone)));
+      const enteredLast10 = cleanEntered.slice(-10);
+      const user = data.user || users.find(u => {
+        const uClean = normalizePhone(u.phone);
+        const uLast10 = uClean.slice(-10);
+        return (enteredLast10 && uLast10 && enteredLast10 === uLast10) || uClean.includes(cleanEntered) || cleanEntered.includes(uClean);
+      });
       
       if (!user) {
-        setError("This mobile number is not registered on GateKaru ERP. Try one of the test profiles below.");
+        setError("This mobile number is not registered on GateKaru ERP. Click 'New Registration' below to register.");
+        setRegPhone(phoneNumber);
         setLoading(false);
         return;
       }
@@ -341,6 +357,7 @@ export default function LoginPortal({
       }, 15000);
     } catch (err: any) {
       setError(err.message || "An error occurred while sending OTP.");
+      setRegPhone(phoneNumber);
     } finally {
       setLoading(false);
     }
@@ -357,7 +374,15 @@ export default function LoginPortal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phoneNumber, otp })
       });
-      const data = await response.json();
+
+      const contentType = response.headers.get("content-type") || "";
+      let data: any = {};
+      if (contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        throw new Error("Server response error. Please try again.");
+      }
+
       if (!response.ok) {
         throw new Error(data.error || "Incorrect OTP code.");
       }
@@ -521,7 +546,7 @@ export default function LoginPortal({
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100/50 overflow-hidden relative z-10">
         
         {/* GateKaru Header Banner */}
-        <div className={`p-8 text-white relative transition-all duration-500 ease-in-out ${activeThemeObj.bgClass}`} id="login-header-banner">
+        <div className={`p-5 md:p-8 text-white relative transition-all duration-500 ease-in-out ${activeThemeObj.bgClass}`} id="login-header-banner">
           
           {/* Theme Palette & Language Dropdown */}
           <div className="absolute top-4 right-4 z-20 flex items-center gap-2" id="theme-palette-container">
@@ -693,7 +718,7 @@ export default function LoginPortal({
           <p className="text-xs text-slate-300 font-medium">Greenwood Heights Society • Multitenant Portal</p>
         </div>
 
-        <div className="p-8">
+        <div className="p-5 md:p-8">
           <AnimatePresence mode="wait">
             
             {/* STEP 1: ENTER MOBILE NUMBER */}

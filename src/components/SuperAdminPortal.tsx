@@ -57,6 +57,7 @@ export default function SuperAdminPortal({
   const [activeSection, setActiveSection] = useState<string>("dashboard");
   const [activeSocietyId, setActiveSocietyId] = useState<string>("s1");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Live telemetry mock states
@@ -756,10 +757,12 @@ export default function SuperAdminPortal({
         }}
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
+        mobileMenuOpen={mobileMenuOpen}
+        setMobileMenuOpen={setMobileMenuOpen}
       />
 
       {/* Main viewport frame */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#070b1a]">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#070b1a] min-w-0">
         
         {/* Top Header with search, indicators, selectors, clocks, etc. */}
         <SuperAdminHeader 
@@ -775,10 +778,11 @@ export default function SuperAdminPortal({
           onLogout={onLogout}
           currentUser={currentUser}
           onViewDetails={(type, item) => setSelectedDetail({ type, data: item })}
+          onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
 
         {/* Content canvas viewport */}
-        <div className="flex-1 overflow-y-auto p-6 bg-[#070b1a] custom-scrollbar pb-16">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-[#070b1a] custom-scrollbar pb-16">
           
           {/* Section: Global Dashboard */}
           {activeSection === "dashboard" && (

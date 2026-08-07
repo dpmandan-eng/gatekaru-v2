@@ -252,6 +252,88 @@ export default function SuperAdminAIControl() {
 
       </div>
 
+      {/* NEW: AI Monitoring & Predictive Alerts Console */}
+      <div className="bg-[#0b1029]/90 border border-purple-500/30 rounded-2xl p-5 space-y-4 shadow-2xl">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-purple-500/20 pb-3">
+          <div>
+            <span className="text-[10px] uppercase font-black tracking-widest text-purple-400 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" /> Predictive AI Systems Monitor
+            </span>
+            <h3 className="text-base font-black text-white mt-0.5">Real-time Anomaly Detection & AI Health Suggestions</h3>
+            <p className="text-xs text-slate-400">Autonomous neural monitors scanning cloud infrastructure, database snapshots, and storage partitions.</p>
+          </div>
+          <span className="text-[10px] font-mono font-bold bg-purple-500/10 text-purple-300 border border-purple-500/20 px-3 py-1 rounded-full uppercase">
+            ● 5 Scans Active
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+          
+          {/* Card 1: Detect Failed Backups */}
+          <div className="bg-[#070b1a] border border-[#1d2b5e] p-4 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-white flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" /> Detect Failed Backups
+              </span>
+              <span className="text-[9px] font-black bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded uppercase">Passed</span>
+            </div>
+            <p className="text-[11px] text-slate-400">Automated snapshot verify checks 24/24 point-in-time recovery archives. Zero corruption flagged.</p>
+            <div className="text-[9.5px] font-mono text-indigo-400 bg-indigo-500/10 p-2 rounded border border-indigo-500/20">
+              Latest SHA-256 Checksum: VERIFIED
+            </div>
+          </div>
+
+          {/* Card 2: Detect Low Storage */}
+          <div className="bg-[#070b1a] border border-[#1d2b5e] p-4 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-white flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-400" /> Storage Capacity Monitor
+              </span>
+              <span className="text-[9px] font-black bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded uppercase">44.2% Disk</span>
+            </div>
+            <p className="text-[11px] text-slate-400">1.2 TB available on asia-southeast1 GCP disk pool. AI predicts storage sufficiency for next 18 months.</p>
+            <div className="text-[9.5px] font-mono text-amber-400 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+              Auto-expansion Trigger Threshold: 85%
+            </div>
+          </div>
+
+          {/* Card 3: Server Health Analysis */}
+          <div className="bg-[#070b1a] border border-[#1d2b5e] p-4 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-white flex items-center gap-1.5">
+                <Cpu className="w-4 h-4 text-purple-400" /> Server Health Analysis
+              </span>
+              <span className="text-[9px] font-black bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded uppercase">14ms Latency</span>
+            </div>
+            <p className="text-[11px] text-slate-400">12 Kubernetes pods operating at 14% mean CPU load. Memory allocation remains stabilized at 2.1GB / 16GB.</p>
+            <div className="text-[9.5px] font-mono text-purple-400 bg-purple-500/10 p-2 rounded border border-purple-500/20">
+              Load Balancing Health: 100% OPTIMAL
+            </div>
+          </div>
+
+        </div>
+
+        {/* AI Suggestions & Predictive Alerts banner */}
+        <div className="p-4 bg-gradient-to-r from-purple-950/40 via-indigo-950/50 to-slate-950 border border-purple-500/30 rounded-xl space-y-2">
+          <div className="flex items-center gap-2">
+            <Bot className="w-4 h-4 text-purple-400 animate-pulse" />
+            <span className="text-xs font-black text-white uppercase tracking-wider">AI Optimization Suggestion</span>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed font-medium">
+            <strong>Predictive Alert:</strong> Visitor check-in spikes anticipated during upcoming weekend festival events (Aug 15th). AI recommends increasing websocket thread allocation from 500 to 1,200 concurrent socket handlers at 08:00 AM.
+          </p>
+          <div className="pt-1 flex gap-2">
+            <button 
+              type="button" 
+              onClick={() => alert("⚡ AI Suggestion Applied: Websocket pool capacity expanded to 1,200 concurrent handlers.")}
+              className="text-[10px] bg-purple-600 hover:bg-purple-700 text-white font-black px-3 py-1.5 rounded-lg transition uppercase tracking-wider shadow shadow-purple-600/30 cursor-pointer"
+            >
+              Apply AI Auto-Scale Optimization
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }

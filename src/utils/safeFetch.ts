@@ -47,11 +47,7 @@ export async function safeFetchJson(url: string, options?: RequestInit, defaultV
     return safeParseJson(text, defaultValue);
   } catch (err: any) {
     // Log network/fetch failures as warnings since they are gracefully handled transient states (e.g. during server restart)
-    if (err && (err.message === "Failed to fetch" || err.name === "TypeError")) {
-      console.warn(`safeFetchJson: Transient network connection issue for ${url} (handled gracefully):`, err.message || err);
-    } else {
-      console.error(`safeFetchJson failed for ${url}:`, err);
-    }
+    console.warn(`safeFetchJson: Handled network or parse issue for ${url} (gracefully falling back to default):`, err?.message || err);
     return defaultValue;
   }
 }

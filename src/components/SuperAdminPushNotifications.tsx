@@ -33,6 +33,7 @@ export default function SuperAdminPushNotifications({ societies }: SuperAdminPus
   const [notificationBody, setNotificationBody] = useState("");
   const [targetSociety, setTargetSociety] = useState("All");
   const [targetRole, setTargetRole] = useState("All");
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(["push", "email", "whatsapp", "telegram", "sms"]);
   const [isHighPriority, setIsHighPriority] = useState(false);
   const [alertSound, setAlertSound] = useState("Default Chirp");
   const [isSending, setIsSending] = useState(false);
@@ -273,6 +274,52 @@ export default function SuperAdminPushNotifications({ societies }: SuperAdminPus
                     <option value="Guards">Security Guards Only</option>
                     <option value="RWA Admins">RWA Committee Admins Only</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Multi-Channel Delivery Selector */}
+              <div className="space-y-2 pt-1 border-t border-[#182552]">
+                <label className="text-slate-300 font-extrabold text-xs flex items-center justify-between">
+                  <span>Dispatch Delivery Channels</span>
+                  <span className="text-[10px] text-emerald-400 font-mono font-bold">
+                    {selectedChannels.length} Channels Active
+                  </span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {[
+                    { id: "push", label: "Push", icon: "🔔", color: "border-indigo-500 bg-indigo-500/20 text-indigo-300" },
+                    { id: "email", label: "Email", icon: "✉️", color: "border-sky-500 bg-sky-500/20 text-sky-300" },
+                    { id: "whatsapp", label: "WhatsApp", icon: "💬", color: "border-emerald-500 bg-emerald-500/20 text-emerald-300" },
+                    { id: "telegram", label: "Telegram", icon: "✈️", color: "border-blue-500 bg-blue-500/20 text-blue-300" },
+                    { id: "sms", label: "SMS", icon: "📱", color: "border-amber-500 bg-amber-500/20 text-amber-300" },
+                  ].map((ch) => {
+                    const active = selectedChannels.includes(ch.id);
+                    return (
+                      <button
+                        key={ch.id}
+                        type="button"
+                        onClick={() => {
+                          if (active) {
+                            if (selectedChannels.length > 1) {
+                              setSelectedChannels(prev => prev.filter(c => c !== ch.id));
+                            } else {
+                              alert("At least one dispatch channel must remain active.");
+                            }
+                          } else {
+                            setSelectedChannels(prev => [...prev, ch.id]);
+                          }
+                        }}
+                        className={`p-2 rounded-xl border text-[11px] font-black transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                          active 
+                            ? ch.color + " shadow-md" 
+                            : "bg-[#070b1a] border-[#1f2e63] text-slate-500 hover:text-slate-300"
+                        }`}
+                      >
+                        <span>{ch.icon}</span>
+                        <span>{ch.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

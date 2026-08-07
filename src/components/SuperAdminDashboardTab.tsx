@@ -4,6 +4,7 @@ import {
   Ticket, Users as UsersIcon, Cpu, RefreshCw, BarChart2, TrendingUp, Sparkles, CheckCircle2,
   Activity as HealthIcon, Cloud, Server, Database, BrainCircuit, Heart, Globe, Terminal
 } from "lucide-react";
+import { DashboardGridSkeleton } from "./Skeleton";
 
 interface SuperAdminDashboardTabProps {
   societiesCount: number;
@@ -23,6 +24,14 @@ export default function SuperAdminDashboardTab({
   onSelectSection
 }: SuperAdminDashboardTabProps) {
   const [activeChart, setActiveChart] = useState<string>("revenue");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const handleRefreshTelemetry = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 700);
+  };
 
   // Mock aggregates for high-fidelity SaaS experience with corresponding sectionIds for navigation
   const stats = [
@@ -51,6 +60,23 @@ export default function SuperAdminDashboardTab({
     { id: "ai_prediction", label: "AI Prediction Graph", desc: "JobsKaru smart forecasting models for Q4 scaling" },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6 select-none text-slate-300">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-[#1e295d] pb-4">
+          <div>
+            <span className="text-xs uppercase font-black tracking-widest text-indigo-400 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-indigo-400 animate-spin" /> 
+              Synchronizing Operational Telemetry...
+            </span>
+            <h2 className="text-2xl font-black text-white mt-1">JobsKaru Dev Master Control Center</h2>
+          </div>
+        </div>
+        <DashboardGridSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 select-none animate-fadeIn text-slate-300">
       
@@ -64,11 +90,21 @@ export default function SuperAdminDashboardTab({
           <h2 className="text-2xl font-black text-white mt-1">JobsKaru Dev Master Control Center</h2>
           <p className="text-xs text-slate-400">Live system metrics, transactional aggregates, platform health index, and real-time operational telemetry.</p>
         </div>
-        <div className="bg-[#11193d]/80 border border-[#23357a] p-1.5 rounded-xl flex items-center gap-2">
-          <span className="text-[10px] font-mono text-indigo-300 px-2 py-1">Node: gcp-asia-southeast1</span>
-          <span className="text-emerald-400 font-extrabold text-[10px] bg-emerald-500/10 px-2.5 py-1 rounded-lg flex items-center gap-1 uppercase tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Optimal
-          </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefreshTelemetry}
+            className="bg-[#182554] hover:bg-[#20326e] text-indigo-200 text-xs font-bold px-3 py-1.5 rounded-xl border border-[#2b3e85] flex items-center gap-1.5 transition cursor-pointer active:scale-95"
+            title="Fetch latest system telemetry & show skeleton loading"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Refresh Data</span>
+          </button>
+          <div className="bg-[#11193d]/80 border border-[#23357a] p-1.5 rounded-xl flex items-center gap-2">
+            <span className="text-[10px] font-mono text-indigo-300 px-2 py-1">Node: gcp-asia-southeast1</span>
+            <span className="text-emerald-400 font-extrabold text-[10px] bg-emerald-500/10 px-2.5 py-1 rounded-lg flex items-center gap-1 uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Optimal
+            </span>
+          </div>
         </div>
       </div>
 

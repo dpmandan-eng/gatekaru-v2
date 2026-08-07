@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { 
   Search, Bell, Globe, Moon, Sun, Cpu, Database, Calendar, Sparkles, 
   Terminal, ShieldCheck, Heart, Info, RefreshCw, ChevronDown, User, 
-  LogOut, Shield, Layout, Radio, Clock, AlertTriangle, CheckCircle 
+  LogOut, Shield, Layout, Radio, Clock, AlertTriangle, CheckCircle, Menu 
 } from "lucide-react";
 
 interface SuperAdminHeaderProps {
@@ -18,6 +18,7 @@ interface SuperAdminHeaderProps {
   onLogout?: () => void;
   currentUser?: any;
   onViewDetails?: (type: "resident" | "visitor" | "society", item: any) => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export default function SuperAdminHeader({ 
@@ -32,7 +33,8 @@ export default function SuperAdminHeader({
   onSwitchPortal,
   onLogout,
   currentUser,
-  onViewDetails
+  onViewDetails,
+  onToggleMobileMenu
 }: SuperAdminHeaderProps) {
   const [searchValue, setSearchValue] = useState("");
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -108,16 +110,29 @@ export default function SuperAdminHeader({
   const selectedSociety = societies.find(s => s.id === activeSocietyId) || societies[0];
 
   return (
-    <header id="super-admin-header" className="h-16 bg-[#0a0f24] border-b border-[#1e295d] px-6 flex items-center justify-between shrink-0 select-none text-slate-200 z-30 sticky top-0 backdrop-blur-md bg-opacity-95">
+    <header id="super-admin-header" className="h-16 bg-[#0a0f24] border-b border-[#1e295d] px-3 md:px-6 flex items-center justify-between shrink-0 select-none text-slate-200 z-30 sticky top-0 backdrop-blur-md bg-opacity-95">
       
-      {/* LEFT: Active Society Switcher & Global Search */}
-      <div className="flex items-center gap-6 flex-1 max-w-2xl">
+      {/* LEFT: Mobile Menu Toggle, Active Society Switcher & Global Search */}
+      <div className="flex items-center gap-2 md:gap-6 flex-1 max-w-2xl">
         
+        {/* Mobile Hamburger Toggle Button */}
+        {onToggleMobileMenu && (
+          <button
+            type="button"
+            onClick={onToggleMobileMenu}
+            className="md:hidden p-2 rounded-xl bg-[#11193d] border border-[#23357a] text-indigo-300 hover:text-white transition cursor-pointer shrink-0"
+            title="Toggle Menu"
+            aria-label="Toggle Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+
         {/* Active Society & Switcher */}
-        <div className="flex items-center gap-2.5 bg-[#10173a]/75 border border-[#1e2b60] rounded-xl px-3 py-1.5 shrink-0">
-          <div className="relative flex items-center gap-1">
+        <div className="flex items-center gap-2 bg-[#10173a]/75 border border-[#1e2b60] rounded-xl px-2.5 py-1.5 shrink-0 max-w-[170px] sm:max-w-none">
+          <div className="relative flex items-center gap-1 shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Node:</span>
+            <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider hidden sm:inline">Node:</span>
           </div>
           <select 
             value={activeSocietyId}
@@ -128,7 +143,7 @@ export default function SuperAdminHeader({
                 alert(`🌐 Switched SaaS database partition to: ${name}. Live telemetry stream established.`);
               }
             }}
-            className="bg-transparent border-none text-xs font-black text-indigo-300 focus:outline-none cursor-pointer pr-1 py-0.5"
+            className="bg-transparent border-none text-xs font-black text-indigo-300 focus:outline-none cursor-pointer pr-1 py-0.5 truncate"
             title="Switch Society Node Context"
           >
             {societies.map((soc) => (

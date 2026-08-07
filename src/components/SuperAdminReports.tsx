@@ -141,6 +141,9 @@ export default function SuperAdminReports({ societies, residents }: SuperAdminRe
                   className="w-full bg-[#070b1a] border border-[#21326d] rounded-lg p-2.5 text-white text-xs"
                   disabled={isCompiling}
                 >
+                  <option value="Backup Reports">Backup & Point-in-Time Snapshot Audit Reports</option>
+                  <option value="Restore Reports">Restore History & Disaster Recovery Verification</option>
+                  <option value="Security Reports">Security Threats, Failed Logins & Breach Audits</option>
                   <option value="Security Logs">Society Security Guard Patrol Logs</option>
                   <option value="Billing Reconciliation">Billing & IGST Taxation Reconciliation</option>
                   <option value="Tenant Demographic">Society Onboarding Census & Flats Population</option>
@@ -152,8 +155,8 @@ export default function SuperAdminReports({ societies, residents }: SuperAdminRe
               {/* Layout format */}
               <div className="space-y-1.5">
                 <label className="text-slate-400 font-bold block">Output Compilation Format</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {["PDF", "CSV", "JSON"].map((fmt) => (
+                <div className="grid grid-cols-4 gap-2">
+                  {["PDF", "Excel", "CSV", "JSON"].map((fmt) => (
                     <button
                       key={fmt}
                       type="button"
@@ -165,7 +168,7 @@ export default function SuperAdminReports({ societies, residents }: SuperAdminRe
                       }`}
                       disabled={isCompiling}
                     >
-                      {fmt} Format
+                      {fmt}
                     </button>
                   ))}
                 </div>

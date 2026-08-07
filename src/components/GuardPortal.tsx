@@ -5,8 +5,9 @@ import { getTranslation } from "../utils/translations";
 import { 
   Check, AlertTriangle, ScanLine, Camera, Car, ShieldAlert, ArrowRight,
   RefreshCw, Wifi, WifiOff, Users, ClipboardList, HelpCircle, Key, CheckCircle,
-  Phone, PhoneCall, Search, Smartphone, Send, Volume2
+  Phone, PhoneCall, Search, Smartphone, Send, Volume2, Shield
 } from "lucide-react";
+import SecurityDesk from "./SecurityDesk";
 import { ALERT_TEMPLATES, INDIAN_LANGUAGES } from "../utils/alertTemplates";
 
 // Web Audio API beep simulator
@@ -230,8 +231,51 @@ export default function GuardPortal({
     speakText(phrase, globalLang);
   };
 
-  // Tabs: Live Scan, On-Spot Entry, Helper Attendance, SOS Log, Intercom & Approvals
-  const [activeTab, setActiveTab] = useState<"scan" | "onspot" | "helpers" | "sos" | "intercom">("scan");
+  // Tabs: Live Scan, On-Spot Entry, Helper Attendance, SOS Log, Intercom & Approvals, Security Operations Desk
+  const [activeTab, setActiveTab] = useState<"scan" | "onspot" | "helpers" | "sos" | "intercom" | "securitydesk">("scan");
+
+  // Blacklist states
+  const [blacklist, setBlacklist] = useState<any[]>([]);
+  const [blacklistAlert, setBlacklistAlert] = useState<{ name: string; vehicle: string; reason: string } | null>(null);
+  const [overridePin, setOverridePin] = useState("");
+
+  useEffect(() => {
+    safeFetchJson("/api/security/blacklist", {}, [])
+      .then(data => {
+        if (Array.isArray(data)) {
+          setBlacklist(data);
+        }
+      })
+      .catch(err => console.error("Error loading blacklist", err));
+  }, [activeTab]); // Refresh whenever tab changes or mounts
+
+  const checkBlacklistMatch = (name: string, vehicle: string): boolean => {
+    if (!name && !vehicle) return false;
+    
+    const matched = blacklist.find(item => {
+      const nameMatch = name && item.name && item.name.toLowerCase() === name.toLowerCase();
+      const cleanInputVehicle = vehicle ? vehicle.replace(/\s+/g, '').toUpperCase() : "";
+      const cleanItemVehicle = item.vehicleNo ? item.vehicleNo.replace(/\s+/g, '').toUpperCase() : "";
+      const vehicleMatch = cleanInputVehicle && cleanItemVehicle && cleanInputVehicle === cleanItemVehicle;
+      
+      return nameMatch || vehicleMatch;
+    });
+
+    if (matched) {
+      // Trigger alarm sirens
+      playDialTone(880, 0.4);
+      setTimeout(() => playDialTone(660, 0.4), 400);
+      setTimeout(() => playDialTone(880, 0.4), 800);
+      
+      setBlacklistAlert({
+        name: matched.name || name,
+        vehicle: matched.vehicleNo || vehicle,
+        reason: matched.reason
+      });
+      return true;
+    }
+    return false;
+  };
 
   // Local Offline Simulation
   const [isOffline, setIsOffline] = useState(false);
@@ -416,6 +460,10 @@ export default function GuardPortal({
 
   // Check in visitor whose approval has been approved
   const handleCheckInApprovedVisitor = (app: PendingApproval) => {
+    if (checkBlacklistMatch(app.visitorName, app.vehicleNumber)) {
+      return;
+    }
+
     if (isOffline) {
       alert("System is currently offline. Cannot complete remote server check-in.");
       return;
@@ -510,6 +558,10 @@ export default function GuardPortal({
 
   // Perform check-in / check-out action
   const handleActionClick = (action: "checkin" | "checkout", visitor: Visitor) => {
+    if (action === "checkin" && checkBlacklistMatch(visitor.name, visitor.vehicleNumber)) {
+      return;
+    }
+
     if (isOffline) {
       // Offline cache log simulation
       alert(`[Offline Mode Cache Locked]: Check-${action === "checkin" ? "in" : "out"} cached locally. Will sync automatically upon internet restoral.`);
@@ -544,6 +596,10 @@ export default function GuardPortal({
   const handleOnSpotSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!walkinName) return;
+
+    if (checkBlacklistMatch(walkinName, walkinVehicle)) {
+      return;
+    }
 
     if (isOffline) {
       alert("[Offline Mode]: Walk-In Entry cached on this tablet local SQLite store. Syncs on reconnection.");
@@ -646,6 +702,91 @@ export default function GuardPortal({
   return (
     <div id="guard-portal" className="flex flex-col h-full bg-slate-50 font-sans">
       
+      {/* ======================================================= */}
+      {/* RED SECURITY ALARM MATCH OVERLAY */}
+      {/* ======================================================= */}
+      {blacklistAlert && (
+        <div className="fixed inset-0 bg-red-950/95 z-50 flex items-center justify-center p-6 backdrop-blur-md">
+          <div className="bg-red-900/90 border-4 border-red-500 rounded-3xl max-w-lg w-full p-8 text-center text-white shadow-2xl relative overflow-hidden animate-pulse">
+            
+            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-red-500 via-yellow-500 to-red-500 animate-pulse" />
+            
+            <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white animate-bounce shadow-lg">
+              <ShieldAlert className="w-10 h-10 text-white" />
+            </div>
+
+            <h2 className="text-xl font-black tracking-widest text-red-100 uppercase font-mono">
+              🚨 GATEKARU ALARM: BLACKLISTED MATCH! 🚨
+            </h2>
+            <p className="text-xs text-red-200 mt-2 font-bold uppercase tracking-wider">
+              Banned Entry Attempt Blocked / प्रतिबंधित आगंतुक प्रवेश निषेध
+            </p>
+
+            <div className="bg-red-950/80 p-5 rounded-2xl border border-red-500/30 text-left my-6 space-y-3">
+              <div>
+                <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider block">Banned Target / प्रतिबंधित व्यक्ति</span>
+                <span className="text-sm font-black text-white">{blacklistAlert.name}</span>
+              </div>
+              
+              {blacklistAlert.vehicle && blacklistAlert.vehicle !== "No Vehicle" && (
+                <div>
+                  <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider block">Banned Vehicle / प्रतिबंधित वाहन</span>
+                  <span className="text-xs font-mono font-black text-red-200 bg-red-900/50 px-2 py-0.5 rounded">{blacklistAlert.vehicle}</span>
+                </div>
+              )}
+
+              <div>
+                <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider block">Banishment Reason / रोके जाने का कारण</span>
+                <p className="text-xs text-slate-200 font-semibold leading-relaxed">
+                  {blacklistAlert.reason}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  onTriggerSOS("Blacklisted entry attempt blocked: " + blacklistAlert.name + " (" + (blacklistAlert.vehicle || "No Vehicle") + ")");
+                  setBlacklistAlert(null);
+                  alert("🚨 Alert sent to Society Admin & SOS dispatch logged. Security gates remain locked.");
+                }}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase text-xs py-3.5 rounded-xl border border-red-500 transition shadow cursor-pointer active:scale-95"
+              >
+                ⚠️ DENY ENTRY & DISPATCH SOS (प्रवेश अस्वीकार व अलार्म भेजें)
+              </button>
+
+              <div className="border-t border-red-500/20 pt-3">
+                <p className="text-[9px] font-bold text-red-400 uppercase mb-2">Authorize Exception? (Requires admin bypass PIN: 1234)</p>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="Enter Bypass PIN"
+                    value={overridePin}
+                    onChange={(e) => setOverridePin(e.target.value)}
+                    className="flex-1 bg-red-950 border border-red-500/30 rounded-lg p-2 text-xs text-white placeholder-red-700 font-bold focus:outline-none focus:ring-1 focus:ring-red-400"
+                  />
+                  <button
+                    onClick={() => {
+                      if (overridePin === "1234" || overridePin === "9999") {
+                        setBlacklistAlert(null);
+                        setOverridePin("");
+                        alert("🔒 Admin override code accepted. Entry bypassed & logged as exceptional clearance.");
+                      } else {
+                        alert("❌ Invalid Bypass PIN!");
+                      }
+                    }}
+                    className="bg-white text-red-950 hover:bg-red-100 font-extrabold uppercase text-[10px] px-4 rounded-lg transition"
+                  >
+                    Bypass
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* Offline simulation toggler */}
       <div className="bg-slate-900 px-6 py-2.5 flex justify-between items-center text-white shrink-0">
         <div className="flex items-center gap-2">
@@ -702,6 +843,12 @@ export default function GuardPortal({
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${activeTab === "sos" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
         >
           <ShieldAlert className="w-3.5 h-3.5" /> Emergency SOS Dispatch Log
+        </button>
+        <button 
+          onClick={() => setActiveTab("securitydesk")}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${activeTab === "securitydesk" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
+        >
+          <Shield className="w-3.5 h-3.5" /> Security Operations Desk (नया)
         </button>
       </div>
 
@@ -1415,6 +1562,10 @@ export default function GuardPortal({
             </div>
 
           </div>
+        )}
+
+        {activeTab === "securitydesk" && (
+          <SecurityDesk />
         )}
       </div>
     </div>
