@@ -4,6 +4,7 @@ import {
   Settings, Server, Plus, Trash2, Cpu, CheckCircle2, RefreshCw, Radio,
   Download, Archive, MessageSquare, Globe, Send, Check
 } from "lucide-react";
+import ApiKeyManager from "./ApiKeyManager";
 
 interface SmsProvider {
   id: string;
@@ -911,48 +912,8 @@ export default function SuperAdminDevTools() {
             </form>
           </div>
 
-          {/* API Key generator */}
-          <div className="bg-[#0b1029]/80 border border-[#1e2a5e] rounded-2xl p-5 space-y-4">
-            <div>
-              <h3 className="font-extrabold text-white text-sm uppercase tracking-wider">SaaS API Gateway Keys</h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">Generate client handshake credentials for custom third-party integrations.</p>
-            </div>
-
-            {/* DUAL LANGUAGE NOTICE TO PREVENT CONFUSION */}
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-[11px] text-amber-300 leading-relaxed font-semibold">
-              <span className="text-amber-400 font-extrabold">⚠️ ध्यान दें (ALERT):</span> यह सेक्शन आपके कस्टम ऐप्स के लिए API क्रेडेंशियल <strong>जनरेट</strong> (Generate) करने के लिए है। अगर आप अपने <strong>OTP / SMS Provider (जैसे Fast2SMS, Twilio)</strong> की एपीआई की डालना चाहते हैं, तो इस पेज के सबसे ऊपर बने सुनहरे <strong className="text-white">"Universal SMS & OTP Gateway Panel"</strong> वाले बॉक्स का उपयोग करें!
-            </div>
-
-            <form onSubmit={generateNewApiKey} className="flex gap-2">
-              <input 
-                type="text" 
-                value={keyName}
-                onChange={(e) => setKeyName(e.target.value)}
-                placeholder="Society / Partner Name" 
-                className="flex-1 bg-[#0a0f24] border border-[#21326d] rounded-lg p-2 text-xs font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-              />
-              <button 
-                type="submit" 
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-4 rounded-lg text-xs uppercase"
-              >
-                Generate
-              </button>
-            </form>
-
-            <div className="space-y-2">
-              {apiKeys.map((key) => (
-                <div key={key.id} className="p-2.5 bg-[#070b1a]/95 rounded-xl border border-[#152048] flex justify-between items-center text-xs">
-                  <div>
-                    <span className="font-bold text-slate-200">{key.name}</span>
-                    <span className="text-[10px] text-slate-500 block font-mono">Created: {key.created}</span>
-                  </div>
-                  <span className="font-mono text-[10px] bg-[#121c43] text-indigo-300 px-2 py-0.5 rounded font-black border border-[#1e2e66]">
-                    {key.key}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Dedicated API Key & Security Manager */}
+          <ApiKeyManager darkMode={true} />
 
           {/* Cron Jobs Status */}
           <div className="bg-[#0b1029]/80 border border-[#1e2a5e] rounded-2xl p-5 space-y-3">

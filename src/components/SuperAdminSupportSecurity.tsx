@@ -3,6 +3,8 @@ import {
   Ticket, MessageSquare, Shield, Monitor, Key, Lock, Eye, CheckCircle2, 
   Trash2, Plus, Terminal, RefreshCw, Send, Check
 } from "lucide-react";
+import SessionManager from "./SessionManager";
+import ApiKeyManager from "./ApiKeyManager";
 
 interface SuperAdminSupportSecurityProps {
   activeSection?: string;
@@ -301,41 +303,17 @@ export default function SuperAdminSupportSecurity({ activeSection }: SuperAdminS
       {/* SECURITY CENTER VIEW */}
       {/* ======================================================= */}
       {subTab === "security" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Active device sessions & 2FA toggles */}
-          <div className="lg:col-span-7 space-y-6">
-            
-            {/* Device Sessions list */}
-            <div className="bg-[#0b1029]/80 border border-[#1e2a5e] rounded-2xl p-5 space-y-4">
-              <div>
-                <h3 className="font-extrabold text-white text-sm uppercase tracking-wider">Active Authorized Sessions</h3>
-                <p className="text-[10px] text-slate-400 mt-0.5">Live developer login sessions currently holding master tokens.</p>
-              </div>
+        <div className="space-y-6">
+          {/* Dedicated Security Center API Key Manager */}
+          <ApiKeyManager darkMode={true} />
 
-              <div className="space-y-3">
-                {deviceSessions.map((s) => (
-                  <div key={s.id} className="p-3 bg-[#070b1a]/95 border border-[#162149] rounded-xl flex justify-between items-center text-xs hover:border-[#223371] transition">
-                    <div>
-                      <span className="font-bold text-white block">{s.device}</span>
-                      <span className="text-[10px] text-slate-500 block">IP: {s.ip} • Region: {s.location}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] text-slate-400 font-mono font-bold bg-[#121c43] px-2 py-0.5 rounded border border-[#1d2a5d]">{s.active}</span>
-                      <button 
-                        onClick={() => revokeSession(s.id, s.device)}
-                        className="text-slate-500 hover:text-red-400 transition"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* Live Session Manager Component */}
+          <SessionManager darkMode={true} />
 
-            {/* Policies Matrix */}
-            <div className="bg-[#0b1029]/80 border border-[#1e2a5e] rounded-2xl p-5 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 space-y-6">
+              {/* Policies Matrix */}
+              <div className="bg-[#0b1029]/80 border border-[#1e2a5e] rounded-2xl p-5 space-y-4">
               <h3 className="font-extrabold text-white text-sm uppercase tracking-wider">Global Security Handshake Policy</h3>
               <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
                 <div className="p-3 bg-[#070b1a]/95 border border-[#16214a] rounded-xl space-y-2">
@@ -468,8 +446,9 @@ export default function SuperAdminSupportSecurity({ activeSection }: SuperAdminS
           </div>
 
         </div>
-      )}
+      </div>
+    )}
 
-    </div>
-  );
+  </div>
+);
 }

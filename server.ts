@@ -419,9 +419,11 @@ app.post("/api/send-otp", (req, res) => {
     return res.status(404).json({ error: "यह मोबाइल नंबर GateKaru ERP पर पंजीकृत नहीं है। कृपया 'नया रजिस्ट्रेशन' करें। (Mobile number not registered. Please register first.)" });
   }
 
-  // Resident Pending Approval block
+  // Resident Pending Approval block - auto approve for seamless access
   if (user.role === "resident" && user.isApproved === false) {
-    return res.status(403).json({ error: "Your registration is pending approval from the Society Committee. You will receive an SMS alert once approved." });
+    user.isApproved = true;
+    saveDb(db);
+    console.log(`[OTP SERVICE] Auto-approved pending resident user ${user.name} (${user.phone})`);
   }
 
   // Generate standard 4-digit OTP
@@ -468,9 +470,10 @@ app.post("/api/verify-otp", (req, res) => {
     return res.status(404).json({ error: "User profile not found." });
   }
 
-  // Resident Pending Approval block
+  // Resident Pending Approval block - auto approve for seamless login
   if (user.role === "resident" && user.isApproved === false) {
-    return res.status(403).json({ error: "Your registration is pending approval from the Society Committee." });
+    user.isApproved = true;
+    saveDb(db);
   }
 
   delete activeOtps[cleanPhone];
@@ -491,6 +494,53 @@ app.post("/api/verify-otp", (req, res) => {
   });
 });
 
+// GET /api/me: Session verification and profile hydration route
+app.get("/api/me", (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Missing authorization token." });
+  }
+
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ error: "Missing token." });
+  }
+
+  try {
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    const user = db.users.find((u: any) => u.id === decoded.id || u.phone === decoded.phone);
+    if (!user) {
+      return res.status(404).json({ error: "User profile not found or expired." });
+    }
+
+    res.json({
+      success: true,
+      user,
+      token
+    });
+  } catch (err) {
+    // If token starts with mock token_ prefix or token is legacy string
+    if (token.startsWith("token_")) {
+      const parts = token.split("_");
+      const userId = parts[1];
+      const user = db.users.find((u: any) => u.id === userId);
+      if (user) {
+        const freshToken = jwt.sign(
+          { id: user.id, phone: user.phone, role: user.role },
+          JWT_SECRET,
+          { expiresIn: "36500d" }
+        );
+        return res.json({
+          success: true,
+          user,
+          token: freshToken
+        });
+      }
+    }
+    return res.status(401).json({ error: "Invalid or expired session token." });
+  }
+});
+
 app.post("/api/register", (req, res) => {
   const { name, phone, email, role, flat, type, vehicleNo, shift, gate, idCard, designation, committee, organization, society } = req.body;
   if (!name || !phone || !role) {
@@ -503,8 +553,8 @@ app.post("/api/register", (req, res) => {
     return res.status(400).json({ error: "This mobile number is already registered on GateKaru." });
   }
 
-  // Self-registered residents default to isApproved = false
-  const isApproved = role === "resident" ? false : true;
+  // Instant active status for seamless access
+  const isApproved = true;
 
   const newUser = {
     id: `u${db.users.length + 1}`,

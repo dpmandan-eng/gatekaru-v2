@@ -19,9 +19,17 @@ import {
   Sliders, 
   ThumbsUp, 
   X,
-  Volume2
+  Volume2,
+  Siren,
+  Sparkles,
+  Key
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import EmergencyLogTab from "./EmergencyLogTab";
+import SOSHeatmap from "./SOSHeatmap";
+import AISecurityFeatures from "./AISecurityFeatures";
+import SessionManager from "./SessionManager";
+import ApiKeyManager from "./ApiKeyManager";
 
 interface BlacklistEntry {
   id: string;
@@ -63,7 +71,7 @@ interface PatrolEntry {
 }
 
 export default function SecurityDesk() {
-  const [activeSubTab, setActiveSubTab] = useState<"blacklist" | "handover" | "patrol">("blacklist");
+  const [activeSubTab, setActiveSubTab] = useState<"blacklist" | "handover" | "patrol" | "emergencylog" | "sosheatmap" | "aifeatures" | "sessionmanager" | "apikeys">("blacklist");
   
   // Data States
   const [blacklist, setBlacklist] = useState<BlacklistEntry[]>([]);
@@ -338,6 +346,56 @@ export default function SecurityDesk() {
         {/* Sub tabs bar */}
         <div className="flex border-t border-white/10 mt-6 pt-4 gap-2 overflow-x-auto">
           <button
+            onClick={() => setActiveSubTab("emergencylog")}
+            className={`px-4 py-2 text-xs font-extrabold uppercase rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeSubTab === "emergencylog" 
+                ? "bg-rose-600 text-white shadow-sm ring-2 ring-rose-300" 
+                : "text-rose-300 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <Siren className="w-3.5 h-3.5 text-rose-400 animate-pulse" /> Emergency Log (आपातकालीन लॉग)
+          </button>
+          <button
+            onClick={() => setActiveSubTab("sosheatmap")}
+            className={`px-4 py-2 text-xs font-extrabold uppercase rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeSubTab === "sosheatmap" 
+                ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-300" 
+                : "text-amber-300 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5 text-amber-400" /> SOS Heatmap (SOS मैप)
+          </button>
+          <button
+            onClick={() => setActiveSubTab("aifeatures")}
+            className={`px-4 py-2 text-xs font-extrabold uppercase rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeSubTab === "aifeatures" 
+                ? "bg-purple-600 text-white shadow-sm ring-2 ring-purple-300" 
+                : "text-purple-300 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" /> ✨ AI Features (AI सुरक्षा)
+          </button>
+          <button
+            onClick={() => setActiveSubTab("sessionmanager")}
+            className={`px-4 py-2 text-xs font-extrabold uppercase rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeSubTab === "sessionmanager" 
+                ? "bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300" 
+                : "text-indigo-300 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5 text-indigo-300" /> Active Sessions (सक्रिय सेशन)
+          </button>
+          <button
+            onClick={() => setActiveSubTab("apikeys")}
+            className={`px-4 py-2 text-xs font-extrabold uppercase rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeSubTab === "apikeys" 
+                ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-300" 
+                : "text-amber-300 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <Key className="w-3.5 h-3.5 text-amber-300 animate-pulse" /> Security Center & API Keys (एपीआई सुरक्षा)
+          </button>
+          <button
             onClick={() => setActiveSubTab("blacklist")}
             className={`px-4 py-2 text-xs font-extrabold uppercase rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubTab === "blacklist" 
@@ -377,6 +435,31 @@ export default function SecurityDesk() {
         </div>
       ) : (
         <div className="space-y-6">
+
+          {/* SUBTAB: EMERGENCY LOG */}
+          {activeSubTab === "emergencylog" && (
+            <EmergencyLogTab darkMode={true} />
+          )}
+
+          {/* SUBTAB: SOS HEATMAP */}
+          {activeSubTab === "sosheatmap" && (
+            <SOSHeatmap darkMode={true} />
+          )}
+
+          {/* SUBTAB: AI SECURITY FEATURES */}
+          {activeSubTab === "aifeatures" && (
+            <AISecurityFeatures darkMode={true} />
+          )}
+
+          {/* SUBTAB: SESSION MANAGER */}
+          {activeSubTab === "sessionmanager" && (
+            <SessionManager darkMode={true} />
+          )}
+
+          {/* SUBTAB: API KEYS & SECURITY CENTER */}
+          {activeSubTab === "apikeys" && (
+            <ApiKeyManager darkMode={true} />
+          )}
           
           {/* ------------------------------------------------------------- */}
           {/* SUBTAB 1: BLACKLIST REGISTRY */}

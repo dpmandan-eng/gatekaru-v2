@@ -27,13 +27,18 @@ import {
   PhoneCall,
   ShieldAlert,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Siren,
+  MapPin
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { User, Visitor, MaintenanceBill, Complaint, Notice, Poll, GuardAlert } from "../types";
 import UserAnalytics from "./UserAnalytics";
 import GateAnalyticsChart from "./GateAnalyticsChart";
 import MonthlySecurityTrendsChart from "./MonthlySecurityTrendsChart";
+import EmergencyLogTab from "./EmergencyLogTab";
+import SOSHeatmap from "./SOSHeatmap";
+import AISecurityFeatures from "./AISecurityFeatures";
 import { StatCardSkeleton, ListCardSkeleton, ChartCardSkeleton, DashboardGridSkeleton } from "./Skeleton";
 
 interface UnifiedDashboardProps {
@@ -605,7 +610,37 @@ export default function UnifiedDashboard({
                 : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <Sparkles className="w-4 h-4" /> Summary Hub (एकीकृत संक्षेप)
+            <Sparkles className="w-4 h-4 text-indigo-600" /> Summary Hub (एकीकृत संक्षेप)
+          </button>
+          <button
+            onClick={() => setActiveTab("emergencylog")}
+            className={`py-3 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === "emergencylog" 
+                ? "border-rose-600 text-rose-700 font-extrabold bg-rose-50/50" 
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Siren className="w-4 h-4 text-rose-500 animate-pulse" /> Emergency Log (आपातकालीन लॉग)
+          </button>
+          <button
+            onClick={() => setActiveTab("sosheatmap")}
+            className={`py-3 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === "sosheatmap" 
+                ? "border-amber-600 text-amber-700 font-extrabold bg-amber-50/50" 
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <MapPin className="w-4 h-4 text-amber-500" /> SOS Heatmap (SOS मैप)
+          </button>
+          <button
+            onClick={() => setActiveTab("aifeatures")}
+            className={`py-3 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === "aifeatures" 
+                ? "border-purple-600 text-purple-700 font-extrabold bg-purple-50/50" 
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-purple-600 animate-spin" /> ✨ AI Features (AI सुरक्षा)
           </button>
           <button
             onClick={() => setActiveTab("home")}
@@ -1526,6 +1561,33 @@ export default function UnifiedDashboard({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ========================================================== */}
+          {/* TAB: EMERGENCY LOG (🚨 आपातकालीन लॉग) */}
+          {/* ========================================================== */}
+          {activeTab === "emergencylog" && (
+            <div className="space-y-6">
+              <EmergencyLogTab darkMode={false} />
+            </div>
+          )}
+
+          {/* ========================================================== */}
+          {/* TAB: SOS HEATMAP & EMERGENCY RISK MAP (🗺️ SOS हीटमैप) */}
+          {/* ========================================================== */}
+          {activeTab === "sosheatmap" && (
+            <div className="space-y-6">
+              <SOSHeatmap darkMode={false} />
+            </div>
+          )}
+
+          {/* ========================================================== */}
+          {/* TAB: AI SECURITY FEATURES (✨ AI सुरक्षा) */}
+          {/* ========================================================== */}
+          {activeTab === "aifeatures" && (
+            <div className="space-y-6">
+              <AISecurityFeatures darkMode={false} />
             </div>
           )}
 

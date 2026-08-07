@@ -75,6 +75,18 @@
       "role": "super_admin",
       "organization": "GateKaru Corporate",
       "registeredAt": "2026-07-24T09:25:59.254Z"
+    },
+    {
+      "id": "u3",
+      "name": "DEVARAM PUNARAM SUTHAR",
+      "phone": "9920268194",
+      "email": "dpmandan@gmail.com",
+      "role": "resident",
+      "flat": "305",
+      "type": "Owner",
+      "society": "Greenwood Heights Society",
+      "isApproved": true,
+      "registeredAt": "2026-08-07T15:56:56.697Z"
     }
   ],
   "visitors": [],
@@ -1103,6 +1115,22 @@
       "userRole": "super_admin",
       "flat": "N/A",
       "timestamp": "2026-07-19T18:15:59.254Z"
+    },
+    {
+      "id": "log_1786115350199_ii49",
+      "userId": "u6",
+      "userName": "GateKaru Developer",
+      "userRole": "super_admin",
+      "flat": "N/A",
+      "timestamp": "2026-08-07T15:09:10.199Z"
+    },
+    {
+      "id": "log_1786118281814_p7pn",
+      "userId": "u6",
+      "userName": "GateKaru Developer",
+      "userRole": "super_admin",
+      "flat": "N/A",
+      "timestamp": "2026-08-07T15:58:01.814Z"
     }
   ]
 }

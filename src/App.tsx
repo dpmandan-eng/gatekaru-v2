@@ -126,6 +126,37 @@ export default function App() {
     }
   }, [currentUser, activePortal]);
 
+  // Hydrate & verify user session on initialization / reload
+  useEffect(() => {
+    const hydrateSession = async () => {
+      const savedToken = localStorage.getItem("gatekaru_token");
+      const savedUserStr = localStorage.getItem("gatekaru_user");
+
+      if (!savedToken && !savedUserStr) return;
+
+      try {
+        const res = await safeFetchJson("/api/me", undefined, null);
+        if (res && res.success && res.user) {
+          setCurrentUser(res.user);
+          localStorage.setItem("gatekaru_user", JSON.stringify(res.user));
+          if (res.token) {
+            localStorage.setItem("gatekaru_token", res.token);
+          }
+        } else if (res && res.error) {
+          console.warn("Session token invalid or expired. Resetting session.");
+          localStorage.removeItem("gatekaru_user");
+          localStorage.removeItem("gatekaru_portal");
+          localStorage.removeItem("gatekaru_token");
+          setCurrentUser(null);
+        }
+      } catch (err) {
+        console.warn("Session hydration failed:", err);
+      }
+    };
+
+    hydrateSession();
+  }, []);
+
   // Easter Egg: G logo clicked 5 times
   const [logoClicks, setLogoClicks] = useState(0);
 

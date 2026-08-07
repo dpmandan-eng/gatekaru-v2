@@ -1,12 +1,17 @@
 import React, { useState, useMemo } from "react";
 import { 
   Plus, Sparkles, Users, FileText, Check, Trash, AlertTriangle, 
-  Search, RefreshCw, DollarSign, Calendar, Shield, Info, Send, UserPlus, Sliders, CheckCircle
+  Search, RefreshCw, DollarSign, Calendar, Shield, Info, Send, UserPlus, Sliders, CheckCircle,
+  Siren, MapPin
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import SecurityDesk from "./SecurityDesk";
 import GateAnalyticsChart from "./GateAnalyticsChart";
 import MonthlySecurityTrendsChart from "./MonthlySecurityTrendsChart";
+import EmergencyLogTab from "./EmergencyLogTab";
+import SOSHeatmap from "./SOSHeatmap";
+import AISecurityFeatures from "./AISecurityFeatures";
+import SessionManager from "./SessionManager";
 
 // custom types specified in instructions
 interface ResidentRecord {
@@ -476,6 +481,46 @@ export default function AdminPortal({
           {/* Navigation Tab Heads */}
           <div className="bg-slate-800/80 p-2 border-b border-slate-700 flex flex-wrap gap-1">
             <button
+              onClick={() => setActiveTab("emergencylog")}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 ${
+                activeTab === "emergencylog"
+                  ? "bg-rose-600 text-white shadow-md shadow-rose-950 ring-2 ring-rose-400/50"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
+              }`}
+            >
+              <Siren className="w-4 h-4 text-rose-400 animate-pulse" /> 🚨 Emergency Log (आपातकालीन लॉग)
+            </button>
+            <button
+              onClick={() => setActiveTab("sosheatmap")}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 ${
+                activeTab === "sosheatmap"
+                  ? "bg-amber-600 text-white shadow-md shadow-amber-950 ring-2 ring-amber-400/50"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
+              }`}
+            >
+              <MapPin className="w-4 h-4 text-amber-400" /> 🗺️ SOS Heatmap (SOS मैप)
+            </button>
+            <button
+              onClick={() => setActiveTab("aifeatures")}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 ${
+                activeTab === "aifeatures"
+                  ? "bg-purple-600 text-white shadow-md shadow-purple-950 ring-2 ring-purple-400/50"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-amber-300 animate-spin" /> ✨ AI Features (AI सुरक्षा)
+            </button>
+            <button
+              onClick={() => setActiveTab("sessionmanager")}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 ${
+                activeTab === "sessionmanager"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-950 ring-2 ring-indigo-400/50"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
+              }`}
+            >
+              <Shield className="w-4 h-4 text-indigo-400" /> 🔒 Session Manager (सक्रिय सेशन)
+            </button>
+            <button
               onClick={() => setActiveTab("quotation")}
               className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 ${
                 activeTab === "quotation"
@@ -519,6 +564,54 @@ export default function AdminPortal({
 
           <div className="p-6">
             <AnimatePresence mode="wait">
+
+              {/* EMERGENCY LOG TAB */}
+              {activeTab === "emergencylog" && (
+                <motion.div
+                  key="tab-emergencylog"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <EmergencyLogTab darkMode={true} />
+                </motion.div>
+              )}
+
+              {/* SOS HEATMAP TAB */}
+              {activeTab === "sosheatmap" && (
+                <motion.div
+                  key="tab-sosheatmap"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <SOSHeatmap darkMode={true} />
+                </motion.div>
+              )}
+
+              {/* AI SECURITY FEATURES TAB */}
+              {activeTab === "aifeatures" && (
+                <motion.div
+                  key="tab-aifeatures"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <AISecurityFeatures darkMode={true} />
+                </motion.div>
+              )}
+
+              {/* SESSION MANAGER TAB */}
+              {activeTab === "sessionmanager" && (
+                <motion.div
+                  key="tab-sessionmanager"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <SessionManager darkMode={true} />
+                </motion.div>
+              )}
               
               {/* TAB 1: VENDOR QUOTATIONS */}
               {activeTab === "quotation" && (
